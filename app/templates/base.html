@@ -100,8 +100,12 @@
             <i class="bi bi-people-fill"></i><span>Öğrenciler</span>
         </a>
         <a href="{{ url_for('analytics.analytics_overview') }}"
-           class="nav-link {% if request.endpoint in ['analytics.analytics_overview','analytics.class_analysis'] %}active{% endif %}">
+           class="nav-link {% if request.endpoint in ['analytics.analytics_overview','analytics.class_analysis','analytics.student_analysis'] %}active{% endif %}">
             <i class="bi bi-bar-chart-line-fill"></i><span>Sınıf Analizi</span>
+        </a>
+        <a href="{{ url_for('attendance.overview') }}"
+           class="nav-link {% if request.endpoint == 'attendance.overview' %}active{% endif %}">
+            <i class="bi bi-calendar-x-fill"></i><span>Devamsızlık Takibi</span>
         </a>
 
         <!-- AKADEMİK -->
@@ -113,10 +117,6 @@
         <a href="{{ url_for('courses.list_courses') }}"
            class="nav-link {% if request.endpoint == 'courses.list_courses' %}active{% endif %}">
             <i class="bi bi-book-fill"></i><span>Dersler</span>
-        </a>
-        <a href="{{ url_for('attendance.overview') }}"
-           class="nav-link {% if request.endpoint == 'attendance.overview' %}active{% endif %}">
-            <i class="bi bi-calendar-check-fill"></i><span>Devamsızlık</span>
         </a>
         <a href="{{ url_for('attendance.record_form') }}"
            class="nav-link {% if request.endpoint in ['attendance.record_form','attendance.record_form_post'] %}active{% endif %}">

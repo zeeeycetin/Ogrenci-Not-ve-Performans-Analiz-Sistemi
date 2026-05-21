@@ -20,12 +20,19 @@ def get_recommender():
 @login_required
 def student_analysis(student_id: str):
     academic_year = request.args.get("academic_year")
+
+    student_doc = current_app.db.students.find_one({"_id": ObjectId(student_id)})
+    if not student_doc:
+        return redirect(url_for("analytics.analytics_overview"))
+    student = serialize_doc(student_doc)
+
     result = get_analyzer().analyze_student(student_id, academic_year)
     if "error" in result:
-        return error_response(result["error"], 404)
+        if request.is_json:
+            return error_response(result["error"], 404)
+        return render_template("analytics/student_analysis.html", analysis=result, student=student)
     if request.is_json:
         return success_response(result)
-    student = serialize_doc(current_app.db.students.find_one({"_id": ObjectId(student_id)}) or {})
     return render_template("analytics/student_analysis.html", analysis=result, student=student)
 
 

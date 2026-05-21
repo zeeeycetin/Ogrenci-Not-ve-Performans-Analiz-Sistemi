@@ -1,5 +1,6 @@
 from flask import Blueprint, request, current_app, render_template, session, redirect, url_for
 from bson import ObjectId
+from bson.errors import InvalidId
 from app.analysis.analytics_engine import PerformanceAnalyzer
 from app.recommendations.recommendation_engine import RecommendationEngine
 from app.utils.auth import login_required, teacher_required
@@ -21,7 +22,12 @@ def get_recommender():
 def student_analysis(student_id: str):
     academic_year = request.args.get("academic_year")
 
-    student_doc = current_app.db.students.find_one({"_id": ObjectId(student_id)})
+    try:
+        oid = ObjectId(student_id)
+    except (InvalidId, Exception):
+        return redirect(url_for("analytics.analytics_overview"))
+
+    student_doc = current_app.db.students.find_one({"_id": oid})
     if not student_doc:
         return redirect(url_for("analytics.analytics_overview"))
     student = serialize_doc(student_doc)

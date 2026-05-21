@@ -1,6 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Performans Analizi{% endblock %}
 
+{% set ga   = analysis.grade_analysis or {} %}
+{% set aa   = analysis.attendance_analysis or {} %}
+{% set acta = analysis.activity_analysis or {} %}
+{% set trend= analysis.grade_trend or {} %}
+{% set corr = analysis.attendance_grade_correlation or {} %}
+
 {% block content %}
 
 {% if analysis.error %}
@@ -15,12 +21,6 @@
     </a>
 </div>
 {% else %}
-
-{% set ga   = analysis.grade_analysis %}
-{% set aa   = analysis.attendance_analysis %}
-{% set acta = analysis.activity_analysis %}
-{% set trend= analysis.grade_trend %}
-{% set corr = analysis.attendance_grade_correlation %}
 
 <!-- ── Öğrenci Bilgi Banner ───────────────────────────────── -->
 <div class="analysis-hero mb-4">

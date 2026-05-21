@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}Dersler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-book-fill me-2 text-primary"></i>Dersler</h4>
+        <p class="text-muted mb-0">
+            {% if role == 'teacher' %}Sorumlu olduğunuz <strong>{{ courses | length }}</strong> ders
+            {% else %}Kayıtlı olduğunuz dersler{% endif %}
+        </p>
+    </div>
+    {% if role == 'teacher' %}
+    <a href="{{ url_for('grades.grade_entry') }}" class="btn btn-primary">
+        <i class="bi bi-pencil-fill me-2"></i>Not Girişi
+    </a>
+    {% endif %}
+</div>
+
+{% if courses %}
+
+<!-- ── Özet stat kartları ──────────────────────────────────── -->
+{% if role == 'teacher' %}
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-book-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ courses | length }}</div>
+                <div class="stat-label">Toplam Ders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                {% set total_pass = courses | sum(attribute='pass_count') %}
+                <div class="stat-value">{{ total_pass }}</div>
+                <div class="stat-label">Toplam Geçen</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-red">
+            <div class="stat-icon"><i class="bi bi-x-circle-fill"></i></div>
+            <div class="stat-info">
+                {% set total_fail = courses | sum(attribute='fail_count') %}
+                <div class="stat-value">{{ total_fail }}</div>
+                <div class="stat-label">Toplam Kalan</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-orange">
+            <div class="stat-icon"><i class="bi bi-briefcase-fill"></i></div>
+            <div class="stat-info">
+                {% set proj_count = courses | selectattr('has_project') | list | length %}
+                <div class="stat-value">{{ proj_count }}</div>
+                <div class="stat-label">Projeli Ders</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Bar chart (öğretmen) ───────────────────────────────── -->
+{% if role == 'teacher' %}
+<div class="card chart-card mb-4">
+    <div class="card-header">
+        <h6><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Ders Bazlı Başarı Karşılaştırması</h6>
+        <div class="d-flex align-items-center gap-2">
+            <span class="d-flex align-items-center gap-1" style="font-size:.72rem;color:#10b981;">
+                <span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block;"></span>≥70
+            </span>
+            <span class="d-flex align-items-center gap-1" style="font-size:.72rem;color:#f59e0b;">
+                <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>60–70
+            </span>
+            <span class="d-flex align-items-center gap-1" style="font-size:.72rem;color:#ef4444;">
+                <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>&lt;60
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        <canvas id="courseChart" height="90"></canvas>
+    </div>
+</div>
+{% endif %}
+
+<!-- ── Ders kartları ──────────────────────────────────────── -->
+<div class="row g-3">
+    {% for c in courses %}
+    <div class="col-md-6 col-xl-4">
+        <div class="course-detail-card">
+            <!-- Üst kısım: ikon + isim + badge -->
+            <div class="cdc-header">
+                <div class="cdc-icon-wrap">
+                    <span class="cdc-abbr">{{ c.course_code[:3] if c.course_code else 'DRS' }}</span>
+                </div>
+                <div class="cdc-title-block">
+                    <div class="cdc-name">{{ c.course_name }}</div>
+                    <div class="d-flex align-items-center gap-1 mt-1">
+                        <code class="text-muted" style="font-size:.7rem;">{{ c.course_code }}</code>
+                        {% if c.class_name %}
+                        <span class="badge bg-primary-subtle text-primary" style="font-size:.62rem;">{{ c.class_name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if c.has_project %}
+                <span class="cdc-proj-badge">Projeli</span>
+                {% endif %}
+            </div>
+
+            <!-- Ortalama -->
+            {% if c.avg_score %}
+            <div class="cdc-avg-row">
+                <div class="cdc-avg-left">
+                    <span class="cdc-avg-num {% if c.avg_score >= 70 %}text-success{% elif c.avg_score >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                        {{ "%.1f"|format(c.avg_score) }}
+                    </span>
+                    <span class="cdc-avg-lbl">Sınıf Ort.</span>
+                </div>
+                <div class="cdc-avg-bar-wrap">
+                    <div class="progress" style="height:8px;">
+                        <div class="progress-bar {% if c.avg_score >= 70 %}bg-success{% elif c.avg_score >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                             style="width:{{ c.avg_score }}%"></div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="text-muted small text-center py-2">Not verisi yok</div>
+            {% endif %}
+
+            <!-- Geçti/Kaldı/Toplam -->
+            <div class="cdc-stats-row">
+                <div class="cdc-stat-box" style="background:#f0fdf4;">
+                    <div class="cdc-stat-val text-success">{{ c.pass_count }}</div>
+                    <div class="cdc-stat-lbl">Geçti</div>
+                </div>
+                <div class="cdc-stat-box" style="background:#fef2f2;">
+                    <div class="cdc-stat-val text-danger">{{ c.fail_count }}</div>
+                    <div class="cdc-stat-lbl">Kaldı</div>
+                </div>
+                <div class="cdc-stat-box" style="background:#eff6ff;">
+                    <div class="cdc-stat-val text-primary">{{ c.grade_count }}</div>
+                    <div class="cdc-stat-lbl">Toplam</div>
+                </div>
+                {% if c.grade_count > 0 %}
+                <div class="cdc-stat-box" style="background:#f5f3ff;">
+                    <div class="cdc-stat-val" style="color:#7c3aed;">
+                        %{{ ((c.pass_count / c.grade_count) * 100) | round | int }}
+                    </div>
+                    <div class="cdc-stat-lbl">Geçme</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Alt: ağırlıklar + buton -->
+            <div class="cdc-footer">
+                <div class="cdc-weights">
+                    <i class="bi bi-info-circle me-1" style="font-size:.7rem;"></i>
+                    {% if c.has_project %}
+                    Vize %40 · Proje %20 · Final %40
+                    {% else %}
+                    Vize %40 · Final %60
+                    {% endif %}
+                </div>
+                {% if role == 'teacher' %}
+                <a href="{{ url_for('grades.grade_entry') }}?course_id={{ c.id }}"
+                   class="btn btn-sm cdc-action-btn">
+                    <i class="bi bi-pencil-fill me-1"></i>Notlar
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state py-5">
+            <i class="bi bi-book"></i>
+            <p>Kayıtlı ders bulunamadı.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if courses and role == 'teacher' %}
+<script>
+const courses = {{ courses | tojson | safe }};
+
+(function() {
+    const ctx    = document.getElementById('courseChart').getContext('2d');
+    const colors = courses.map(c =>
+        (c.avg_score || 0) >= 70 ? '#10b981' :
+        (c.avg_score || 0) >= 60 ? '#f59e0b' : '#ef4444'
+    );
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: courses.map(c => c.course_name),
+            datasets: [
+                {
+                    label: 'Sınıf Ortalaması',
+                    data: courses.map(c => c.avg_score || 0),
+                    backgroundColor: colors.map(c => c + 'cc'),
+                    borderColor: colors,
+                    borderWidth: 1.5, borderRadius: 10, borderSkipped: false,
+                },
+                {
+                    label: 'Geçme Eşiği',
+                    data: courses.map(() => 70),
+                    type: 'line',
+                    borderColor: '#6366f155',
+                    borderWidth: 1.5,
+                    borderDash: [6, 4],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family: 'Montserrat', size: 12 },
+                    bodyFont:  { family: 'Montserrat', size: 11 },
+                    filter: item => item.datasetIndex === 0,
+                    callbacks: {
+                        label: ctx => ` Ortalama: ${ctx.parsed.y}`,
+                        afterLabel: ctx => {
+                            const c = courses[ctx.dataIndex];
+                            return ` Geçen: ${c.pass_count} / Kalan: ${c.fail_count}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true, max: 100,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { font: { family: 'Montserrat', size: 11 }, callback: v => v }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family: 'Montserrat', size: 10 }, maxRotation: 25 }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

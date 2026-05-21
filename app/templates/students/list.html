@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+{% block title %}Öğrenciler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-people-fill me-2 text-primary"></i>Öğrenci Listesi</h4>
+        <p class="text-muted mb-0">Toplam <strong>{{ total }}</strong> öğrenci kayıtlı</p>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+        <i class="bi bi-person-plus-fill me-2"></i>Öğrenci Ekle
+    </button>
+</div>
+
+<!-- ── Sınıf filtre butonları ──────────────────────────────── -->
+<div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    <a href="{{ url_for('students.list_students') }}"
+       class="btn btn-sm {% if not request.args.get('class_name') %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        <i class="bi bi-people me-1"></i>Tümü
+        <span class="badge {% if not request.args.get('class_name') %}bg-white text-primary{% else %}bg-secondary bg-opacity-20 text-secondary{% endif %} ms-1">{{ total }}</span>
+    </a>
+    {% for cls in classes %}
+    <a href="{{ url_for('students.list_students', class_name=cls) }}"
+       class="btn btn-sm {% if request.args.get('class_name') == cls %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        {{ cls }}
+    </a>
+    {% endfor %}
+</div>
+
+<!-- ── Filtre + Arama ─────────────────────────────────────── -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="GET" class="row g-2 align-items-end">
+            {% if request.args.get('class_name') %}
+            <input type="hidden" name="class_name" value="{{ request.args.get('class_name') }}">
+            {% endif %}
+            <div class="col-sm-auto">
+                <label class="form-label">Sıralama</label>
+                <select name="sort_by" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="full_name"      {% if request.args.get('sort_by','full_name') == 'full_name'      %}selected{% endif %}>Ad Soyad</option>
+                    <option value="student_number" {% if request.args.get('sort_by') == 'student_number' %}selected{% endif %}>Öğrenci No</option>
+                    <option value="class_name"     {% if request.args.get('sort_by') == 'class_name'     %}selected{% endif %}>Sınıf</option>
+                </select>
+            </div>
+            <div class="col flex-grow-1">
+                <label class="form-label">Ara</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0" placeholder="İsim veya numara…" id="searchInput">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Öğrenci Tablosu ────────────────────────────────────── -->
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0" id="studentsTable">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:44px;">#</th>
+                    <th>Öğrenci</th>
+                    <th>No</th>
+                    <th>Sınıf</th>
+                    <th>Performans</th>
+                    <th style="min-width:120px;">Ortalama</th>
+                    <th class="text-center" style="width:110px;">İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, student in enumerate(items) %}
+                {% set avg = student.overall_average %}
+                <tr>
+                    <td class="text-muted small ps-3">{{ (page-1)*per_page + i + 1 }}</td>
+
+                    <!-- Öğrenci -->
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="sl-avatar
+                                {% if student.performance_label == 'Üstün Başarılı' %}sl-av-ustun
+                                {% elif student.performance_label == 'İyi' %}sl-av-iyi
+                                {% elif student.performance_label == 'Orta' %}sl-av-orta
+                                {% elif student.performance_label == 'Gelişim Gerekli' %}sl-av-gelisim
+                                {% elif student.performance_label == 'Kritik' %}sl-av-kritik
+                                {% else %}sl-av-default{% endif %}">
+                                {{ student.full_name[0] | upper }}
+                            </div>
+                            <div>
+                                <div class="fw-semibold" style="font-size:.875rem;">{{ student.full_name }}</div>
+                                {% if student.gender %}
+                                <div class="text-muted" style="font-size:.7rem;">{{ student.gender }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- No -->
+                    <td><code class="small text-muted">{{ student.student_number }}</code></td>
+
+                    <!-- Sınıf -->
+                    <td><span class="badge bg-primary-subtle text-primary">{{ student.class_name }}</span></td>
+
+                    <!-- Performans -->
+                    <td>
+                        {% if student.performance_label and student.performance_label != 'Belirsiz' %}
+                        <span class="badge
+                            {% if student.performance_label == 'Üstün Başarılı' %}perf-ustun
+                            {% elif student.performance_label == 'İyi' %}perf-iyi
+                            {% elif student.performance_label == 'Orta' %}perf-orta
+                            {% elif student.performance_label == 'Gelişim Gerekli' %}perf-gelisim
+                            {% else %}perf-kritik{% endif %}">
+                            {{ student.performance_label }}
+                        </span>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Ortalama + mini bar -->
+                    <td>
+                        {% if avg %}
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold {% if avg >= 70 %}text-success{% elif avg >= 60 %}text-warning{% else %}text-danger{% endif %}" style="min-width:36px;font-size:.9rem;">
+                                {{ "%.1f"|format(avg) }}
+                            </span>
+                            <div class="progress flex-grow-1" style="height:5px;max-width:70px;">
+                                <div class="progress-bar {% if avg >= 70 %}bg-success{% elif avg >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     style="width:{{ avg }}%"></div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">—</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- İşlemler -->
+                    <td class="text-center">
+                        <div class="d-flex justify-content-center gap-1">
+                            <a href="{{ url_for('students.get_student', student_id=student.id) }}"
+                               class="sl-action-btn sl-btn-primary" data-bs-toggle="tooltip" title="Detay">
+                                <i class="bi bi-eye-fill"></i>
+                            </a>
+                            <a href="{{ url_for('analytics.student_analysis', student_id=student.id) }}"
+                               class="sl-action-btn sl-btn-success" data-bs-toggle="tooltip" title="Analiz">
+                                <i class="bi bi-graph-up"></i>
+                            </a>
+                            <button class="sl-action-btn sl-btn-danger" data-bs-toggle="tooltip" title="Sil"
+                                    onclick="deleteStudent('{{ student.id }}', '{{ student.full_name }}')">
+                                <i class="bi bi-trash3-fill"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if not items %}
+                <tr>
+                    <td colspan="7" class="py-5 text-center">
+                        <div class="empty-state py-2">
+                            <i class="bi bi-people"></i>
+                            <p>Bu sınıfta öğrenci bulunamadı.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Sayfalama -->
+    {% if pages > 1 %}
+    <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2">
+        <small class="text-muted">
+            {{ (page-1)*per_page + 1 }}–{{ [(page)*per_page, total]|min }} / {{ total }} öğrenci
+        </small>
+        <nav>
+            <ul class="pagination pagination-sm mb-0 gap-1">
+                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                    <a class="page-link rounded" href="?page={{ page-1 }}&class_name={{ request.args.get('class_name','') }}&sort_by={{ request.args.get('sort_by','full_name') }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                {% for p in range([1, page-2]|max, [pages+1, page+3]|min) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link rounded" href="?page={{ p }}&class_name={{ request.args.get('class_name','') }}&sort_by={{ request.args.get('sort_by','full_name') }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+                <li class="page-item {% if page == pages %}disabled{% endif %}">
+                    <a class="page-link rounded" href="?page={{ page+1 }}&class_name={{ request.args.get('class_name','') }}&sort_by={{ request.args.get('sort_by','full_name') }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ── Öğrenci Ekle Modal ─────────────────────────────────── -->
+<div class="modal fade" id="addStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:40px;height:40px;border-radius:.625rem;background:linear-gradient(135deg,#4361ee,#6366f1);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;">
+                        <i class="bi bi-person-plus-fill"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title mb-0">Yeni Öğrenci</h5>
+                        <small class="text-muted">Sisteme öğrenci kaydı ekleyin</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Ad Soyad <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-person text-muted"></i></span>
+                            <input type="text" class="form-control" id="newFullName" placeholder="Örn: Ahmet Yılmaz">
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Öğrenci No <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-white"><i class="bi bi-hash text-muted"></i></span>
+                            <input type="text" class="form-control" id="newStudentNo" placeholder="2024001">
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Cinsiyet</label>
+                        <select class="form-select" id="newGender">
+                            <option value="">Belirtilmemiş</option>
+                            <option value="Erkek">Erkek</option>
+                            <option value="Kadın">Kadın</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Sınıf <span class="text-danger">*</span></label>
+                        <select class="form-select" id="newClass">
+                            {% for cls in classes %}
+                            <option>{{ cls }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary px-4" onclick="addStudent()" id="addStudentBtn">
+                    <i class="bi bi-person-check-fill me-2"></i>Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Canlı arama
+document.getElementById('searchInput').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#studentsTable tbody tr').forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+
+// Öğrenci sil
+async function deleteStudent(id, name) {
+    if (!confirm(`"${name}" adlı öğrenciyi silmek istediğinizden emin misiniz?\nBu işlem geri alınamaz.`)) return;
+    const res  = await fetch(`/students/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) {
+        showToast('success', 'Öğrenci silindi.');
+        setTimeout(() => location.reload(), 900);
+    } else {
+        showToast('danger', data.message || 'Silme işlemi başarısız.');
+    }
+}
+
+// Öğrenci ekle
+async function addStudent() {
+    const btn  = document.getElementById('addStudentBtn');
+    const body = {
+        full_name:      document.getElementById('newFullName').value.trim(),
+        student_number: document.getElementById('newStudentNo').value.trim(),
+        class_name:     document.getElementById('newClass').value,
+        gender:         document.getElementById('newGender').value,
+        user_id:        '000000000000000000000000',
+    };
+    if (!body.full_name)      { showToast('warning', 'Ad Soyad zorunludur.'); return; }
+    if (!body.student_number) { showToast('warning', 'Öğrenci No zorunludur.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Kaydediliyor…';
+
+    const res  = await fetch('/students/', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const data = await res.json();
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-person-check-fill me-2"></i>Kaydet';
+
+    if (data.success) {
+        showToast('success', 'Öğrenci başarıyla eklendi.');
+        bootstrap.Modal.getInstance(document.getElementById('addStudentModal')).hide();
+        setTimeout(() => location.reload(), 900);
+    } else {
+        showToast('danger', data.message || 'Hata oluştu.');
+    }
+}
+
+// Tooltip init
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

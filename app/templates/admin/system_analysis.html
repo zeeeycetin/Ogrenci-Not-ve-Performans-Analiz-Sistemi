@@ -1,0 +1,470 @@
+{% extends "base.html" %}
+{% block title %}Sistem Analizi{% endblock %}
+
+{% block content %}
+<!-- Başlık -->
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-cpu-fill me-2 text-primary"></i>Sistem Analizi</h4>
+        <p class="text-muted mb-0">Sistem geneli performans, veri kalitesi ve istatistik raporu</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.admin_performances') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-graph-up-arrow me-1"></i>Öğrenci Performansları
+        </a>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Panel
+        </a>
+    </div>
+</div>
+
+<!-- 4.1 Kapsam / Doğrulama -->
+<div class="card mb-4 border-primary border-opacity-25">
+    <div class="card-header" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
+        <h6 class="mb-0 text-primary"><i class="bi bi-shield-check-fill me-2"></i>Veri Kalitesi ve Kapsam</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="text-center p-3 rounded" style="background:#f8fafc;border:1px solid #e2e8f0;">
+                    <div class="fw-bold" style="font-size:2rem;color:#3b82f6;">{{ coverage.total }}</div>
+                    <div class="text-muted small">Toplam Öğrenci</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-3 rounded" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+                    <div class="fw-bold" style="font-size:2rem;color:#10b981;">{{ coverage.with_grades }}</div>
+                    <div class="text-muted small">Not Verisi Var</div>
+                    <div class="badge bg-success-subtle text-success mt-1">%{{ coverage.grade_pct }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-3 rounded" style="background:#fff7ed;border:1px solid #fed7aa;">
+                    <div class="fw-bold" style="font-size:2rem;color:#f59e0b;">{{ coverage.with_attendance }}</div>
+                    <div class="text-muted small">Devamsızlık Kaydı</div>
+                    <div class="badge bg-warning-subtle text-warning mt-1">%{{ coverage.att_pct }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center p-3 rounded" style="background:#f5f3ff;border:1px solid #ddd6fe;">
+                    <div class="fw-bold" style="font-size:2rem;color:#7c3aed;">{{ coverage.with_analysis }}</div>
+                    <div class="text-muted small">Analiz Edildi</div>
+                    <div class="badge" style="background:#ede9fe;color:#6d28d9;margin-top:.25rem;">%{{ coverage.analysis_pct }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Veri kalitesi progress barlar -->
+        <div class="row g-3">
+            {% for label, pct, color in [
+                ('Not Veri Kalitesi', coverage.grade_pct, '#10b981'),
+                ('Devamsızlık Veri Kalitesi', coverage.att_pct, '#f59e0b'),
+                ('Analiz Kapsamı', coverage.analysis_pct, '#7c3aed')
+            ] %}
+            <div class="col-md-4">
+                <div class="d-flex justify-content-between mb-1">
+                    <small class="fw-semibold text-muted">{{ label }}</small>
+                    <small class="fw-bold">%{{ pct }}</small>
+                </div>
+                <div class="progress" style="height:10px;border-radius:6px;">
+                    <div class="progress-bar" style="width:{{ pct }}%;background:{{ color }};border-radius:6px;"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="alert alert-info mt-3 mb-0 py-2 small">
+            <i class="bi bi-info-circle-fill me-1"></i>
+            <strong>Doğrulama Notu:</strong> Sistem, eksik veri durumlarını güvenlik önlemi olarak ele alır.
+            Not verisi bulunmayan öğrenciler için analiz üretilmez; bu durum hatalı etiketlemeyi önler.
+            Güven skoru (%{{ coverage.grade_pct }}) not veri kalitesini, devamsızlık ve aktivite ağırlıklı ortalama alınarak hesaplanır.
+        </div>
+    </div>
+</div>
+
+<!-- 4.2 Model İyileştirme -->
+<div class="card mb-4 border-success border-opacity-25">
+    <div class="card-header" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
+        <h6 class="mb-0 text-success"><i class="bi bi-gear-wide-connected me-2"></i>Skor Modeli ve Etiketleme</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-lg-6">
+                <h6 class="fw-semibold mb-3">Kompozit Skor Formülü (Güncel)</h6>
+                <div class="rounded p-3 mb-3" style="background:#f8fafc;border:1px solid #e2e8f0;font-family:monospace;font-size:.82rem;">
+                    <div class="mb-1"><span style="color:#10b981;">Kompozit Skor</span> =</div>
+                    <div class="ms-3 mb-1">0.70 × <span style="color:#3b82f6;">Not Ortalaması</span></div>
+                    <div class="ms-3 mb-1">+ 0.20 × <span style="color:#f59e0b;">(100 − Devamsızlık%)</span></div>
+                    <div class="ms-3 mb-1">+ 0.10 × <span style="color:#7c3aed;">Aktivite Skoru</span> (max 100)</div>
+                    <div class="ms-3 text-success">± <strong>Trend Bonusu</strong> (+3 yükselen / -2 düşen)</div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+                            <div class="fw-bold text-success">+3 puan</div>
+                            <div class="small text-muted">Yükselen trend (&gt;5 puan artış)</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center" style="background:#fef2f2;border:1px solid #fecaca;">
+                            <div class="fw-bold text-danger">-2 puan</div>
+                            <div class="small text-muted">Düşen trend (&gt;5 puan azalış)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <h6 class="fw-semibold mb-3">Performans Etiket Eşiği</h6>
+                <table class="table table-sm table-bordered mb-3">
+                    <thead class="table-light">
+                        <tr><th>Skor Aralığı</th><th>Etiket</th><th>Yorum</th></tr>
+                    </thead>
+                    <tbody style="font-size:.82rem;">
+                        <tr><td>≥ 90</td><td><span class="badge bg-success">Üstün Başarılı</span></td><td>Hedefin üzerinde</td></tr>
+                        <tr><td>75 – 89</td><td><span class="badge bg-primary">Ortalamanın Üstünde</span></td><td>Beklenen seviyede</td></tr>
+                        <tr><td>60 – 74</td><td><span class="badge bg-warning text-dark">Geliştirilmeli</span></td><td>Destek önerilir</td></tr>
+                        <tr><td>45 – 59</td><td><span class="badge bg-orange text-white" style="background:#f97316;">Sınırda</span></td><td>Risk altında</td></tr>
+                        <tr><td>0 – 44</td><td><span class="badge bg-danger">Kritik Seviye</span></td><td>Acil müdahale</td></tr>
+                    </tbody>
+                </table>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center" style="background:#fff7ed;border:1px solid #fed7aa;">
+                            <div class="fw-bold" style="color:#f59e0b;">Güven Skoru</div>
+                            <div class="small text-muted">Not(%50) + Devamsızlık(%40) + Aktivite(%10)</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center" style="background:#f5f3ff;border:1px solid #ddd6fe;">
+                            <div class="fw-bold" style="color:#7c3aed;">Risk Skoru</div>
+                            <div class="small text-muted">Çok değişkenli: not + devamsızlık + aktivite</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 4.3 Sonuçların Yorumlanması -->
+<div class="card mb-4 border-warning border-opacity-25">
+    <div class="card-header" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);">
+        <h6 class="mb-0 text-warning"><i class="bi bi-bar-chart-line-fill me-2"></i>Performans ve Risk Dağılımı</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-4">
+            <!-- Performans dağılımı -->
+            <div class="col-lg-4">
+                <h6 class="fw-semibold mb-2 text-center">Performans Etiketi Dağılımı</h6>
+                <div style="position:relative;height:220px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="labelDistChart"></canvas>
+                </div>
+                <div class="mt-2">
+                    {% for lbl, cnt in label_dist.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:.8rem;">
+                        <span>{{ lbl }}</span>
+                        <span class="badge bg-secondary">{{ cnt }} öğrenci</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Risk dağılımı -->
+            <div class="col-lg-4">
+                <h6 class="fw-semibold mb-2 text-center">Risk Seviyesi Dağılımı</h6>
+                <div style="position:relative;height:220px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="riskDistChart"></canvas>
+                </div>
+                <div class="mt-2">
+                    {% for lbl, cnt, col in [
+                        ('Düşük Risk', risk_dist.low, '#10b981'),
+                        ('Orta Risk', risk_dist.medium, '#f59e0b'),
+                        ('Yüksek Risk', risk_dist.high, '#f97316'),
+                        ('Kritik Risk', risk_dist.critical, '#ef4444'),
+                    ] %}
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:.8rem;">
+                        <span style="color:{{ col }};"><i class="bi bi-circle-fill me-1" style="font-size:.5rem;"></i>{{ lbl }}</span>
+                        <span class="fw-bold" style="color:{{ col }};">{{ cnt }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Devamsızlık durum dağılımı -->
+            <div class="col-lg-4">
+                <h6 class="fw-semibold mb-2 text-center">Devamsızlık Durum Dağılımı</h6>
+                <div style="position:relative;height:220px;display:flex;align-items:center;justify-content:center;">
+                    <canvas id="attDistChart"></canvas>
+                </div>
+                <div class="mt-2">
+                    {% for lbl, cnt, col in [
+                        ('Normal (<%20)', att_dist.normal, '#10b981'),
+                        ('Uyarı (20–30%)', att_dist.warning, '#f59e0b'),
+                        ('Kritik (>%30)', att_dist.critical, '#ef4444'),
+                    ] %}
+                    <div class="d-flex justify-content-between align-items-center mb-1" style="font-size:.8rem;">
+                        <span><i class="bi bi-circle-fill me-1" style="font-size:.5rem;color:{{ col }};"></i>{{ lbl }}</span>
+                        <span class="fw-bold" style="color:{{ col }};">{{ cnt }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sınıf bazlı ortalamalar -->
+        {% if class_summary %}
+        <div class="mt-4">
+            <h6 class="fw-semibold mb-2">Sınıf Bazlı Not Ortalaması</h6>
+            <canvas id="classAvgChart" height="70"></canvas>
+        </div>
+        {% endif %}
+
+        <!-- Trend dağılımı -->
+        <div class="row g-3 mt-3">
+            {% for lbl, cnt, col, icon in [
+                ('Yükselen', trend_dist.Yükselen, '#10b981', 'arrow-up-circle-fill'),
+                ('Stabil', trend_dist.Stabil, '#3b82f6', 'dash-circle-fill'),
+                ('Düşen', trend_dist.Düşen, '#ef4444', 'arrow-down-circle-fill'),
+                ('İlk Analiz', trend_dist['İlk Analiz'], '#94a3b8', 'clock-fill'),
+            ] %}
+            <div class="col-6 col-md-3">
+                <div class="d-flex align-items-center gap-2 p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0;">
+                    <i class="bi bi-{{ icon }}" style="color:{{ col }};font-size:1.4rem;"></i>
+                    <div>
+                        <div class="fw-bold" style="color:{{ col }};">{{ cnt }}</div>
+                        <div class="text-muted" style="font-size:.75rem;">{{ lbl }} Trend</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Not istatistik özeti -->
+        {% if avg_stats %}
+        <div class="row g-3 mt-3">
+            <div class="col-12">
+                <h6 class="fw-semibold mb-2">Not İstatistikleri (Tüm Öğrenciler)</h6>
+            </div>
+            {% for lbl, val, col in [
+                ('Genel Ortalama', avg_stats.mean, '#3b82f6'),
+                ('Medyan', avg_stats.median, '#10b981'),
+                ('Std. Sapma', avg_stats.std, '#f59e0b'),
+                ('En Yüksek', avg_stats.max, '#6d28d9'),
+                ('En Düşük', avg_stats.min, '#ef4444'),
+            ] %}
+            <div class="col-6 col-md-2">
+                <div class="text-center p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0;">
+                    <div class="fw-bold" style="font-size:1.3rem;color:{{ col }};">{{ val }}</div>
+                    <div class="text-muted" style="font-size:.72rem;">{{ lbl }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 4.4 Amaca Ulaşma Analizi -->
+<div class="card mb-4 border-danger border-opacity-25">
+    <div class="card-header" style="background:linear-gradient(135deg,#fef2f2,#fee2e2);">
+        <h6 class="mb-0 text-danger"><i class="bi bi-bullseye me-2"></i>Sistem Değerlendirmesi</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-4">
+            {% set goals = [
+                ('Öğrenci not ve devamsızlık takibi', coverage.grade_pct >= 50 and coverage.att_pct >= 50, 'Not (%' + coverage.grade_pct|string + ') + Devamsızlık (%' + coverage.att_pct|string + ') veri kapsamı'),
+                ('Performans etiketi hesaplama', coverage.analysis_pct > 0, '%' + coverage.analysis_pct|string + ' öğrenci analiz edildi'),
+                ('Risk tespiti mekanizması', (risk_dist.high + risk_dist.critical) >= 0, (risk_dist.high + risk_dist.critical)|string + ' öğrenci yüksek/kritik risk'),
+                ('Çok boyutlu skor modeli', True, 'Not(%70)+Devamsızlık(%20)+Aktivite(%10)+Trend bonusu'),
+                ('Öğretmen & öğrenci arayüzü', True, 'Her rol için ayrı panel ve izin talebi sistemi'),
+                ('PDF raporlama', True, 'Bireysel öğrenci ve sınıf PDF raporu'),
+                ('QR ile yoklama', True, 'Mobil uyumlu QR kod ile anlık yoklama'),
+                ('Kulüp & aktivite takibi', True, '5 kulüp, öğrenci başına 2 kulüp ataması'),
+            ] %}
+            {% for goal_text, achieved, note in goals %}
+            <div class="col-md-6">
+                <div class="d-flex align-items-start gap-2 p-2 rounded"
+                     style="background:{% if achieved %}#f0fdf4{% else %}#fef2f2{% endif %};border:1px solid {% if achieved %}#bbf7d0{% else %}#fecaca{% endif %};">
+                    <i class="bi bi-{% if achieved %}check-circle-fill text-success{% else %}x-circle-fill text-danger{% endif %} mt-1 flex-shrink-0"></i>
+                    <div>
+                        <div class="fw-semibold small">{{ goal_text }}</div>
+                        <div class="text-muted" style="font-size:.72rem;">{{ note }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Risk altındaki öğrenciler -->
+        {% if at_risk_students %}
+        <h6 class="fw-semibold mb-2"><i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i>Risk Altındaki Öğrenciler (Gerçek Hayat Uygulaması)</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>Öğrenci</th>
+                        <th>Sınıf</th>
+                        <th>Ortalama</th>
+                        <th>Performans</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in at_risk_students %}
+                    <tr>
+                        <td class="fw-semibold">{{ s.full_name }}</td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ s.class_name }}</span></td>
+                        <td>
+                            {% if s.overall_average %}
+                            <span class="fw-bold text-danger">{{ "%.1f"|format(s.overall_average) }}</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if s.performance_label == 'Kritik Seviye' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                {{ s.performance_label or '—' }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('analytics.student_analysis', student_id=s.id) }}"
+                               class="btn btn-xs btn-outline-danger" style="font-size:.72rem;padding:.2rem .5rem;">
+                                <i class="bi bi-graph-up me-1"></i>Analiz
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="alert alert-success mb-0 py-2 small">
+            <i class="bi bi-check2-all me-1"></i>
+            <strong>Genel Değerlendirme:</strong> Sistem, başlangıçta belirlenen temel hedefleri başarıyla karşılamaktadır.
+            Gerçek hayatta bu sistem; okul idaresinin risk altındaki öğrencileri zamanında tespit etmesini,
+            öğretmenlerin ders başarısını izlemesini ve öğrencilerin kendi performanslarını görüp gelişim
+            planı oluşturmasını sağlar. Devamsızlık–not korelasyonu analizi, müdahale politikalarının
+            geliştirilmesine doğrudan katkı sunar.
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const labelDist = {{ label_dist | tojson | safe }};
+const riskDist  = {{ risk_dist  | tojson | safe }};
+const attDist   = {{ att_dist   | tojson | safe }};
+const classSummary = {{ class_summary | tojson | safe }};
+
+// Performans etiket doughnut
+(function() {
+    const ctx = document.getElementById('labelDistChart').getContext('2d');
+    const colorMap = {
+        'Üstün Başarılı': '#10b981',
+        'Ortalamanın Üstünde': '#3b82f6',
+        'Geliştirilmeli': '#f59e0b',
+        'Sınırda': '#f97316',
+        'Kritik Seviye': '#ef4444',
+        'Belirsiz': '#94a3b8',
+    };
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(labelDist),
+            datasets: [{
+                data: Object.values(labelDist),
+                backgroundColor: Object.keys(labelDist).map(k => colorMap[k] || '#94a3b8'),
+                borderWidth: 2, borderColor: '#fff', hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '60%',
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#1e293b' }
+            }
+        }
+    });
+})();
+
+// Risk dağılımı doughnut
+(function() {
+    const ctx = document.getElementById('riskDistChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Düşük', 'Orta', 'Yüksek', 'Kritik'],
+            datasets: [{
+                data: [riskDist.low || 0, riskDist.medium || 0, riskDist.high || 0, riskDist.critical || 0],
+                backgroundColor: ['#10b981', '#f59e0b', '#f97316', '#ef4444'],
+                borderWidth: 2, borderColor: '#fff', hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '60%',
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b' } }
+        }
+    });
+})();
+
+// Devamsızlık doughnut
+(function() {
+    const ctx = document.getElementById('attDistChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Normal', 'Uyarı', 'Kritik'],
+            datasets: [{
+                data: [attDist.normal || 0, attDist.warning || 0, attDist.critical || 0],
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                borderWidth: 2, borderColor: '#fff', hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '60%',
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b' } }
+        }
+    });
+})();
+
+// Sınıf ortalama bar chart
+(function() {
+    const el = document.getElementById('classAvgChart');
+    if (!el || !classSummary.length) return;
+    new Chart(el.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: classSummary.map(c => c.class_name),
+            datasets: [{
+                label: 'Sınıf Ortalaması',
+                data: classSummary.map(c => c.average),
+                backgroundColor: classSummary.map(c =>
+                    c.average >= 70 ? '#10b98199' : c.average >= 60 ? '#f59e0b99' : '#ef444499'
+                ),
+                borderColor: classSummary.map(c =>
+                    c.average >= 70 ? '#10b981' : c.average >= 60 ? '#f59e0b' : '#ef4444'
+                ),
+                borderWidth: 1.5, borderRadius: 8, borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                annotation: {
+                    annotations: {
+                        line1: { type: 'line', yMin: 70, yMax: 70, borderColor: '#10b981', borderWidth: 1.5, borderDash: [6, 3], label: { display: true, content: 'Geçme Eşiği', font: { size: 10 } } }
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' },
+                     ticks: { font: { family: 'Montserrat', size: 11 } } },
+                x: { grid: { display: false }, ticks: { font: { family: 'Montserrat', size: 10 }, maxRotation: 20 } }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

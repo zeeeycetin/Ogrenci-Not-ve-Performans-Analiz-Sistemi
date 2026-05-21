@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}İzin / Devamsızlık{% endblock %}
+
+{% block content %}
+{% set role = session['user']['role'] %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-calendar2-x-fill me-2 text-primary"></i>
+            {% if role == 'teacher' %}İzin Taleplerim{% else %}İzin / Devamsızlık Bildirimlerim{% endif %}
+        </h4>
+        <p class="text-muted mb-0">Yeni talep oluşturun veya mevcut taleplerinizi görüntüleyin — Yönetici onayına gönderilir</p>
+    </div>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#leaveModal">
+        <i class="bi bi-plus-lg me-1"></i>Yeni Talep
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="bi bi-list-ul me-2 text-primary"></i>Taleplerim</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tür</th>
+                        <th>Başlangıç</th>
+                        <th>Bitiş</th>
+                        <th>Gerekçe</th>
+                        <th>Talep Tarihi</th>
+                        <th>Durum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in leaves %}
+                    <tr>
+                        <td class="fw-semibold">{{ l.leave_type }}</td>
+                        <td class="text-muted small">{{ l.start_date }}</td>
+                        <td class="text-muted small">{{ l.end_date }}</td>
+                        <td class="text-muted small" style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ l.reason }}</td>
+                        <td class="text-muted small">{{ l.created_at }}</td>
+                        <td>
+                            {% if l.status == 'approved' %}
+                            <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle-fill me-1"></i>Onaylandı</span>
+                            {% elif l.status == 'rejected' %}
+                            <span class="badge bg-danger-subtle text-danger"><i class="bi bi-x-circle-fill me-1"></i>Reddedildi</span>
+                            {% else %}
+                            <span class="badge bg-warning-subtle text-warning"><i class="bi bi-hourglass-split me-1"></i>Yönetici Onayı Bekleniyor</span>
+                            {% endif %}
+                            {% if l.admin_note %}
+                            <div class="text-muted" style="font-size:.7rem;">Not: {{ l.admin_note }}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted py-5">
+                        <i class="bi bi-inbox display-6 d-block mb-2 opacity-25"></i>
+                        Henüz talebiniz yok.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="leaveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-calendar2-x-fill me-2 text-primary"></i>
+                    {% if role == 'teacher' %}Yeni İzin Talebi{% else %}İzin / Devamsızlık Bildirimi{% endif %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('leaves.request_leave') }}">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Talebiniz yöneticiye iletilecek ve onayına sunulacaktır.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Talep Türü</label>
+                        <select name="leave_type" class="form-select" required>
+                            <option value="">-- Seçin --</option>
+                            {% if role == 'teacher' %}
+                            <option value="Yıllık İzin">Yıllık İzin</option>
+                            <option value="Mazeret İzni">Mazeret İzni</option>
+                            <option value="Sağlık İzni">Sağlık İzni</option>
+                            <option value="Ücretsiz İzin">Ücretsiz İzin</option>
+                            {% else %}
+                            <option value="Devamsızlık Bildirimi">Devamsızlık Bildirimi</option>
+                            <option value="Sağlık Mazereti">Sağlık Mazereti</option>
+                            <option value="Aile Mazereti">Aile Mazereti</option>
+                            <option value="Resmi Mazeret">Resmi Mazeret (Sınav, Yarışma vb.)</option>
+                            {% endif %}
+                            <option value="Diğer">Diğer</option>
+                        </select>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Başlangıç Tarihi</label>
+                            <input type="date" name="start_date" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold">Bitiş Tarihi</label>
+                            <input type="date" name="end_date" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Gerekçe</label>
+                        <textarea name="reason" class="form-control" rows="3"
+                                  placeholder="Talebinizi kısaca açıklayın..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-send-fill me-1"></i>Yöneticiye Gönder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

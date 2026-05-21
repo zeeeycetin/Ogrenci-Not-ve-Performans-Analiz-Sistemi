@@ -1,0 +1,388 @@
+{% extends "base.html" %}
+{% block title %}{{ student.full_name }}{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Banner ────────────────────────────────────────── -->
+<div class="student-detail-hero mb-4">
+    <div class="sdh-content">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <!-- Avatar -->
+            <div class="sdh-avatar
+                {% if student.performance_label == 'Üstün Başarılı' %}sdh-av-ustun
+                {% elif student.performance_label == 'İyi' %}sdh-av-iyi
+                {% elif student.performance_label == 'Orta' %}sdh-av-orta
+                {% elif student.performance_label == 'Gelişim Gerekli' %}sdh-av-gelisim
+                {% elif student.performance_label == 'Kritik' %}sdh-av-kritik
+                {% else %}sdh-av-default{% endif %}">
+                {{ student.full_name[0] | upper }}
+            </div>
+            <!-- Bilgi -->
+            <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                    <h4 class="mb-0 fw-800" style="color:#fff;font-weight:800;">{{ student.full_name }}</h4>
+                    {% if student.performance_label and student.performance_label != 'Belirsiz' %}
+                    <span class="badge
+                        {% if student.performance_label == 'Üstün Başarılı' %}perf-ustun
+                        {% elif student.performance_label == 'İyi' %}perf-iyi
+                        {% elif student.performance_label == 'Orta' %}perf-orta
+                        {% elif student.performance_label == 'Gelişim Gerekli' %}perf-gelisim
+                        {% else %}perf-kritik{% endif %}">
+                        {{ student.performance_label }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div class="d-flex gap-3 flex-wrap" style="color:#94a3b8;font-size:.82rem;">
+                    <span><i class="bi bi-mortarboard-fill me-1"></i>{{ student.class_name }}</span>
+                    <span><code style="color:#818cf8;">{{ student.student_number }}</code></span>
+                    {% if student.gender %}<span><i class="bi bi-person me-1"></i>{{ student.gender }}</span>{% endif %}
+                </div>
+            </div>
+            <!-- Aksiyon butonları -->
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('analytics.student_analysis', student_id=student.id) }}"
+                   class="btn sdh-btn-primary">
+                    <i class="bi bi-graph-up-arrow me-1"></i>Analiz
+                </a>
+                <button class="btn sdh-btn-secondary" data-bs-toggle="modal" data-bs-target="#editStudentModal">
+                    <i class="bi bi-pencil-fill me-1"></i>Düzenle
+                </button>
+                <a href="{{ url_for('students.list_students') }}" class="btn sdh-btn-back">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="sdh-deco sdh-deco-1"></div>
+    <div class="sdh-deco sdh-deco-2"></div>
+</div>
+
+<!-- ── Stat Cards ─────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ "%.1f"|format(summary.average_score or 0) }}</div>
+                <div class="stat-label">Genel Ortalama</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ summary.passing_courses }}</div>
+                <div class="stat-label">Geçilen Ders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card {% if summary.total_absences > 10 %}stat-card-red{% elif summary.total_absences > 5 %}stat-card-orange{% else %}stat-card-green{% endif %}">
+            <div class="stat-icon"><i class="bi bi-calendar-x-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ summary.total_absences }}</div>
+                <div class="stat-label">Devamsızlık</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="bi bi-activity"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ summary.active_activities }}</div>
+                <div class="stat-label">Aktif Aktivite</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Ana İçerik ─────────────────────────────────────────── -->
+<div class="row g-3">
+
+    <!-- Sol: Profil bilgileri -->
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-person-vcard-fill me-2 text-primary"></i>Öğrenci Bilgileri</h6>
+                <button class="btn btn-xs btn-outline-primary" style="font-size:.72rem;padding:.2rem .6rem;"
+                        data-bs-toggle="modal" data-bs-target="#editStudentModal">
+                    <i class="bi bi-pencil me-1"></i>Düzenle
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- Büyük avatar + isim -->
+                <div class="text-center mb-4">
+                    <div class="sdh-profile-avatar mx-auto mb-3
+                        {% if student.performance_label == 'Üstün Başarılı' %}sdh-av-ustun
+                        {% elif student.performance_label == 'İyi' %}sdh-av-iyi
+                        {% elif student.performance_label == 'Orta' %}sdh-av-orta
+                        {% elif student.performance_label == 'Gelişim Gerekli' %}sdh-av-gelisim
+                        {% elif student.performance_label == 'Kritik' %}sdh-av-kritik
+                        {% else %}sdh-av-default{% endif %}">
+                        {{ student.full_name[0] | upper }}
+                    </div>
+                    <div class="fw-bold" style="font-size:1rem;">{{ student.full_name }}</div>
+                    <div class="text-muted small mb-2">{{ student.class_name }}</div>
+                    {% if student.performance_label and student.performance_label != 'Belirsiz' %}
+                    <span class="badge
+                        {% if student.performance_label == 'Üstün Başarılı' %}perf-ustun
+                        {% elif student.performance_label == 'İyi' %}perf-iyi
+                        {% elif student.performance_label == 'Orta' %}perf-orta
+                        {% elif student.performance_label == 'Gelişim Gerekli' %}perf-gelisim
+                        {% else %}perf-kritik{% endif %}">
+                        {{ student.performance_label }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Bilgi satırları -->
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-hash me-1"></i>Öğrenci No</span>
+                    <span class="info-value"><code>{{ student.student_number }}</code></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-mortarboard me-1"></i>Sınıf</span>
+                    <span class="info-value">
+                        <span class="badge bg-primary-subtle text-primary">{{ student.class_name }}</span>
+                    </span>
+                </div>
+                {% if student.gender %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-person me-1"></i>Cinsiyet</span>
+                    <span class="info-value">{{ student.gender }}</span>
+                </div>
+                {% endif %}
+                {% if student.phone %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-telephone me-1"></i>Telefon</span>
+                    <span class="info-value">{{ student.phone }}</span>
+                </div>
+                {% endif %}
+                {% if student.created_at %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-calendar3 me-1"></i>Kayıt</span>
+                    <span class="info-value text-muted small">{{ student.created_at | string | truncate(10, true, '') }}</span>
+                </div>
+                {% endif %}
+
+                <!-- Hızlı linkler -->
+                <div class="mt-3 pt-3 border-top d-flex flex-column gap-2">
+                    <a href="{{ url_for('analytics.student_analysis', student_id=student.id) }}"
+                       class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-graph-up-arrow me-2"></i>Performans Analizi
+                    </a>
+                    <a href="{{ url_for('grades.student_grades', student_id=student.id) }}"
+                       class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-file-earmark-text me-2"></i>Not Detayları
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sağ: Devamsızlık + Not özeti -->
+    <div class="col-lg-8">
+        <div class="row g-3">
+
+            <!-- Devamsızlık -->
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-calendar-check-fill me-2 text-warning"></i>Ders Bazlı Devamsızlık</h6>
+                        {% if student.attendance_summary %}
+                        <span class="badge bg-warning-subtle text-warning">{{ student.attendance_summary | length }} ders</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        {% if student.attendance_summary %}
+                        <div class="row g-2">
+                            {% for a in student.attendance_summary %}
+                            {% set att = a.attendance_pct | default(100) %}
+                            <div class="col-md-6">
+                                <div class="att-course-mini
+                                    {% if a.status == 'Kritik' %}att-mini-danger
+                                    {% elif a.status == 'Uyarı' %}att-mini-warning
+                                    {% else %}att-mini-ok{% endif %}">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <div class="fw-semibold small">{{ a.course_name }}</div>
+                                            <code class="text-muted" style="font-size:.68rem;">{{ a.course_code }}</code>
+                                        </div>
+                                        <span class="badge {% if a.status == 'Kritik' %}bg-danger{% elif a.status == 'Uyarı' %}bg-warning text-dark{% else %}bg-success{% endif %}" style="font-size:.62rem;">
+                                            {{ a.status }}
+                                        </span>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height:6px;">
+                                            <div class="progress-bar {% if att >= 80 %}bg-success{% elif att >= 70 %}bg-warning{% else %}bg-danger{% endif %}"
+                                                 style="width:{{ att }}%"></div>
+                                        </div>
+                                        <small class="fw-bold {% if att >= 80 %}text-success{% elif att >= 70 %}text-warning{% else %}text-danger{% endif %}" style="min-width:38px;text-align:right;">
+                                            %{{ att }}
+                                        </small>
+                                    </div>
+                                    <div class="text-muted mt-1" style="font-size:.68rem;">
+                                        {{ a.missed_weeks }}/{{ a.total_weeks }} hafta devamsız
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="empty-state py-4">
+                            <i class="bi bi-calendar-check"></i>
+                            <p>Devamsızlık kaydı bulunamadı.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Not özeti (grades varsa) -->
+            {% if student.grades %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-file-earmark-check-fill me-2 text-success"></i>Not Özeti</h6>
+                        <a href="{{ url_for('grades.student_grades', student_id=student.id) }}"
+                           class="btn btn-xs btn-outline-success" style="font-size:.72rem;padding:.2rem .6rem;">
+                            Tümü <i class="bi bi-arrow-right"></i>
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        <table class="table table-hover align-middle mb-0 table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ders</th>
+                                    <th class="text-center">Vize</th>
+                                    <th class="text-center">Final</th>
+                                    <th class="text-center">Ort.</th>
+                                    <th class="text-center">Harf</th>
+                                    <th class="text-center">Durum</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for g in student.grades %}
+                                <tr>
+                                    <td class="fw-semibold small">{{ g.course_name if g.course_name else '—' }}</td>
+                                    <td class="text-center small">{{ g.midterm_score if g.midterm_score is not none else '—' }}</td>
+                                    <td class="text-center small">{{ g.final_score if g.final_score is not none else '—' }}</td>
+                                    <td class="text-center">
+                                        <span class="fw-bold small {% if (g.weighted_average or 0) >= 70 %}text-success{% elif (g.weighted_average or 0) >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ "%.1f"|format(g.weighted_average) if g.weighted_average is not none else '—' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if g.letter_grade in ['AA','BA','BB'] %}bg-success{% elif g.letter_grade in ['CB','CC','DC','DD'] %}bg-warning text-dark{% elif g.letter_grade %}bg-danger{% else %}bg-secondary{% endif %}" style="font-size:.65rem;">
+                                            {{ g.letter_grade or '—' }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if g.is_passing is not none %}
+                                        <span class="badge {% if g.is_passing %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}" style="font-size:.65rem;">
+                                            {% if g.is_passing %}✓ Geçti{% else %}✗ Kaldı{% endif %}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<!-- ── Düzenle Modal ───────────────────────────────────────── -->
+<div class="modal fade" id="editStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:40px;height:40px;border-radius:.625rem;background:linear-gradient(135deg,#4361ee,#6366f1);display:flex;align-items:center;justify-content:center;color:#fff;">
+                        <i class="bi bi-pencil-fill"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title mb-0">Öğrenci Düzenle</h5>
+                        <small class="text-muted">{{ student.full_name }}</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Ad Soyad</label>
+                        <input type="text" class="form-control" id="editFullName" value="{{ student.full_name }}">
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Öğrenci No</label>
+                        <input type="text" class="form-control" id="editStudentNo" value="{{ student.student_number }}">
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Cinsiyet</label>
+                        <select class="form-select" id="editGender">
+                            <option value="">Belirtilmemiş</option>
+                            <option value="Erkek" {% if student.gender == 'Erkek' %}selected{% endif %}>Erkek</option>
+                            <option value="Kadın" {% if student.gender in ['Kadın','Kız','Kiz'] %}selected{% endif %}>Kadın</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label">Telefon</label>
+                        <input type="text" class="form-control" id="editPhone" value="{{ student.phone or '' }}" placeholder="0555 000 0000">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary px-4" onclick="saveStudent('{{ student.id }}')" id="saveStudentBtn">
+                    <i class="bi bi-floppy-fill me-2"></i>Kaydet
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function saveStudent(id) {
+    const btn  = document.getElementById('saveStudentBtn');
+    const body = {
+        full_name:      document.getElementById('editFullName').value.trim(),
+        student_number: document.getElementById('editStudentNo').value.trim(),
+        gender:         document.getElementById('editGender').value,
+        phone:          document.getElementById('editPhone').value.trim(),
+    };
+    if (!body.full_name) { showToast('warning', 'Ad Soyad boş olamaz.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Kaydediliyor…';
+
+    try {
+        const res  = await fetch(`/students/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'Bilgiler güncellendi.');
+            bootstrap.Modal.getInstance(document.getElementById('editStudentModal')).hide();
+            setTimeout(() => location.reload(), 900);
+        } else {
+            showToast('danger', data.message || 'Güncelleme başarısız.');
+        }
+    } catch {
+        showToast('danger', 'Sunucu hatası.');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-floppy-fill me-2"></i>Kaydet';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block title %}Notlarım{% endblock %}
+
+{% block content %}
+
+{% if grades %}
+{% set total   = grades | length %}
+{% set passing = grades | selectattr('is_passing') | list | length %}
+{% set failing = total - passing %}
+{% set avg_sum = namespace(v=0) %}
+{% for g in grades %}{% if g.weighted_average %}{% set avg_sum.v = avg_sum.v + g.weighted_average %}{% endif %}{% endfor %}
+{% set avg = (avg_sum.v / total) | round(1) if total > 0 else 0 %}
+{% endif %}
+
+<!-- ── Hero Banner ─────────────────────────────────────────── -->
+<div class="sg-hero mb-4">
+    <div class="sg-hero-deco"></div>
+    <div class="sg-hero-content">
+        <div class="sg-hero-icon"><i class="bi bi-file-earmark-text-fill"></i></div>
+        <div>
+            <h4 class="mb-1">Notlarım</h4>
+            <p class="mb-0 opacity-75" style="font-size:.88rem;">Tüm dersler için not durumunuz</p>
+        </div>
+        {% if grades %}
+        <div class="d-flex gap-3 ms-auto flex-wrap align-items-center">
+            <div class="sg-hero-stat">
+                <div class="sg-hero-stat-val">{{ avg }}</div>
+                <div class="sg-hero-stat-lbl">Genel Ort.</div>
+            </div>
+            <div class="sg-hero-stat">
+                <div class="sg-hero-stat-val" style="color:#86efac;">{{ passing }}/{{ total }}</div>
+                <div class="sg-hero-stat-lbl">Geçilen Ders</div>
+            </div>
+            <a href="{{ url_for('reports.student_report', student_id=student_id) }}"
+               class="btn btn-sm btn-light px-3" style="font-size:.78rem;border-radius:.5rem;" target="_blank">
+                <i class="bi bi-file-pdf-fill me-1 text-danger"></i>PDF İndir
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if grades %}
+
+<!-- ── Stat Kartları ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ avg }}</div>
+                <div class="stat-label">Genel Ortalama</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ passing }}</div>
+                <div class="stat-label">Geçilen Ders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card {% if failing > 0 %}stat-card-red{% else %}stat-card-green{% endif %}">
+            <div class="stat-icon"><i class="bi bi-x-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ failing }}</div>
+                <div class="stat-label">Başarısız Ders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="bi bi-book-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ total }}</div>
+                <div class="stat-label">Toplam Ders</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Grafik ─────────────────────────────────────────────── -->
+<div class="card chart-card mb-4">
+    <div class="card-header">
+        <h6><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Ders Bazlı Not Ortalaması</h6>
+        <div class="d-flex align-items-center gap-2" style="font-size:.72rem;">
+            <span class="d-flex align-items-center gap-1" style="color:#10b981;">
+                <span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block;"></span>≥70
+            </span>
+            <span class="d-flex align-items-center gap-1" style="color:#f59e0b;">
+                <span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>60–70
+            </span>
+            <span class="d-flex align-items-center gap-1" style="color:#ef4444;">
+                <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>&lt;60
+            </span>
+        </div>
+    </div>
+    <div class="card-body">
+        <canvas id="gradeChart" height="90"></canvas>
+    </div>
+</div>
+
+<!-- ── Not Kartları ───────────────────────────────────────── -->
+<div class="row g-3">
+    {% for g in grades %}
+    {% set score = g.weighted_average %}
+    <div class="col-md-6 col-xl-4">
+        <div class="sg-grade-card {% if score and score >= 70 %}sg-grade-pass{% elif score and score >= 60 %}sg-grade-warn{% elif score %}sg-grade-fail{% else %}sg-grade-none{% endif %}">
+            <div class="sg-grade-top">
+                <div class="sg-grade-abbr">{{ g.course.course_code[:3] if g.course and g.course.course_code else 'DRS' }}</div>
+                <div class="sg-grade-info">
+                    <div class="sg-grade-name">{{ g.course.course_name if g.course else '—' }}</div>
+                    <code class="text-muted" style="font-size:.7rem;">{{ g.course.course_code if g.course else '' }}</code>
+                </div>
+                {% if g.is_passing is not none %}
+                <span class="badge ms-auto {% if g.is_passing %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
+                    {% if g.is_passing %}✓ Geçti{% else %}✗ Kaldı{% endif %}
+                </span>
+                {% else %}
+                <span class="badge bg-secondary ms-auto">Girilmedi</span>
+                {% endif %}
+            </div>
+
+            <div class="sg-grade-scores">
+                <div class="sg-score-box">
+                    <div class="sg-score-val">{{ g.midterm_score if g.midterm_score is not none else '—' }}</div>
+                    <div class="sg-score-lbl">Vize</div>
+                </div>
+                {% if g.project_score is not none %}
+                <div class="sg-score-box">
+                    <div class="sg-score-val">{{ g.project_score }}</div>
+                    <div class="sg-score-lbl">Proje</div>
+                </div>
+                {% endif %}
+                <div class="sg-score-box">
+                    <div class="sg-score-val">{{ g.final_score if g.final_score is not none else '—' }}</div>
+                    <div class="sg-score-lbl">Final</div>
+                </div>
+                <div class="sg-score-box sg-score-avg">
+                    <div class="sg-score-val {% if score and score >= 70 %}text-success{% elif score and score >= 60 %}text-warning{% elif score %}text-danger{% endif %}">
+                        {{ "%.1f"|format(score) if score is not none else '—' }}
+                    </div>
+                    <div class="sg-score-lbl">Ortalama</div>
+                </div>
+            </div>
+
+            {% if score %}
+            <div class="sg-grade-bar-wrap">
+                <div class="progress" style="height:5px;border-radius:99px;">
+                    <div class="progress-bar {% if score >= 70 %}bg-success{% elif score >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                         style="width:{{ score }}%;border-radius:99px;"></div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if g.letter_grade %}
+            <div class="sg-grade-letter">
+                <span class="badge {% if g.letter_grade in ['AA','BA','BB'] %}bg-success{% elif g.letter_grade in ['CB','CC','DC','DD'] %}bg-warning text-dark{% else %}bg-danger{% endif %}"
+                      style="font-size:.75rem;padding:.35rem .65rem;">
+                    {{ g.letter_grade }}
+                </span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state py-5">
+            <i class="bi bi-file-earmark-text" style="font-size:3rem;opacity:.3;"></i>
+            <p class="mt-3">Henüz not verisi bulunmuyor.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if grades %}
+<script>
+const grades = {{ grades | tojson | safe }};
+const colors = grades.map(g =>
+    (g.weighted_average || 0) >= 70 ? '#10b981' :
+    (g.weighted_average || 0) >= 60 ? '#f59e0b' : '#ef4444'
+);
+
+const thresholdPlugin = {
+    id: 'threshold',
+    afterDraw(chart) {
+        const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+        const yPos = y.getPixelForValue(70);
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = '#6366f188';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(left, yPos);
+        ctx.lineTo(right, yPos);
+        ctx.stroke();
+        ctx.restore();
+    }
+};
+
+new Chart(document.getElementById('gradeChart').getContext('2d'), {
+    type: 'bar',
+    plugins: [thresholdPlugin],
+    data: {
+        labels: grades.map(g => g.course ? g.course.course_name : ''),
+        datasets: [{
+            label: 'Ağırlıklı Ortalama',
+            data: grades.map(g => g.weighted_average || 0),
+            backgroundColor: colors.map(c => c + 'bb'),
+            borderColor: colors,
+            borderWidth: 1.5,
+            borderRadius: 10,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1e293b',
+                titleFont: { family: 'Montserrat', size: 12 },
+                bodyFont: { family: 'Montserrat', size: 11 },
+                callbacks: {
+                    label: ctx => ` Ortalama: ${ctx.parsed.y}`,
+                    afterLabel: ctx => {
+                        const g = grades[ctx.dataIndex];
+                        return ` ${g.is_passing ? '✓ Geçti' : '✗ Kaldı'} · Harf: ${g.letter_grade || '—'}`;
+                    }
+                }
+            }
+        },
+        scales: {
+            y: { beginAtZero: true, max: 100,
+                 grid: { color: '#f1f5f9' },
+                 ticks: { font: { family: 'Montserrat', size: 11 } } },
+            x: { grid: { display: false },
+                 ticks: { font: { family: 'Montserrat', size: 10 }, maxRotation: 25 } }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

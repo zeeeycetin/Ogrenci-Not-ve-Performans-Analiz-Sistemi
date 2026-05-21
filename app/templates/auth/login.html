@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Giriş Yap{% endblock %}
+
+{% block auth_content %}
+<div class="login-page">
+
+    <!-- ── Sol Panel ─────────────────────────────────────────── -->
+    <div class="login-left d-none d-lg-flex">
+        <!-- Arka plan efektleri -->
+        <div class="login-glow login-glow-1"></div>
+        <div class="login-glow login-glow-2"></div>
+        <div class="login-glow login-glow-3"></div>
+        <!-- Grid desen -->
+        <div class="login-grid-overlay"></div>
+
+        <div class="login-left-body">
+            <!-- Logo -->
+            <div class="login-brand">
+                <div class="login-brand-icon"><i class="bi bi-mortarboard-fill"></i></div>
+                <div>
+                    <div class="login-brand-name">EduTrack</div>
+                    <div class="login-brand-sub">Performans Analiz Sistemi</div>
+                </div>
+            </div>
+
+            <!-- Ana slogan -->
+            <div class="login-tagline">
+                <h1>Başarıyı ölç,<br><span class="login-tagline-accent">geleceği şekillendir.</span></h1>
+                <p>Öğrenci notlarını, devamsızlıklarını ve gelişimini tek bir platformdan takip edin.</p>
+            </div>
+
+            <!-- Özellik satırları -->
+            <div class="login-features">
+                <div class="login-feat">
+                    <div class="login-feat-dot" style="background:#818cf8;"></div>
+                    <div class="login-feat-text">
+                        <strong>Anlık not analizi</strong> — Ders bazlı ortalama ve sınıf sıralaması
+                    </div>
+                </div>
+                <div class="login-feat">
+                    <div class="login-feat-dot" style="background:#34d399;"></div>
+                    <div class="login-feat-text">
+                        <strong>QR kod yoklama</strong> — Saniyeler içinde yoklama tamamla
+                    </div>
+                </div>
+                <div class="login-feat">
+                    <div class="login-feat-dot" style="background:#fbbf24;"></div>
+                    <div class="login-feat-text">
+                        <strong>AI öneriler</strong> — Kişiselleştirilmiş akademik yol haritası
+                    </div>
+                </div>
+                <div class="login-feat">
+                    <div class="login-feat-dot" style="background:#f87171;"></div>
+                    <div class="login-feat-text">
+                        <strong>Excel / PDF rapor</strong> — Tek tıkla sınıf raporunu indir
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kullanıcı avatarları -->
+            <div class="login-social-proof">
+                <div class="login-avatars">
+                    {% for color, letter in [('#4361ee','A'),('#10b981','B'),('#f59e0b','C'),('#8b5cf6','D'),('#ef4444','E')] %}
+                    <div class="login-avatar" style="background:{{ color }};">{{ letter }}</div>
+                    {% endfor %}
+                </div>
+                <div class="login-social-text">
+                    <strong style="color:#e2e8f0;">500+</strong>
+                    <span style="color:#64748b;font-size:.8rem;"> öğrenci ve öğretmen kullanıyor</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Sağ Panel ─────────────────────────────────────────── -->
+    <div class="login-right">
+        <div class="login-form-wrap">
+
+            <!-- Mobil logo -->
+            <div class="d-flex d-lg-none align-items-center gap-2 mb-5">
+                <div class="login-brand-icon" style="width:36px;height:36px;font-size:1rem;">
+                    <i class="bi bi-mortarboard-fill"></i>
+                </div>
+                <div>
+                    <div style="font-weight:800;font-size:1rem;color:var(--text-primary);">EduTrack</div>
+                    <div style="font-size:.7rem;color:#64748b;">Performans Sistemi</div>
+                </div>
+            </div>
+
+            <!-- Başlık -->
+            <div class="login-form-header">
+                <div class="login-welcome-badge" id="welcomeBadge">
+                    <i class="bi bi-hand-wave-fill" style="color:#f59e0b;"></i>
+                    Tekrar hoş geldiniz
+                </div>
+                <h2 id="loginTitle">Hesabınıza<br>giriş yapın</h2>
+                <p id="loginSubtitle">Kullanıcı adınız veya e-postanızla devam edin</p>
+            </div>
+
+            {% if error %}
+            <div class="login-error-box">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <!-- Form -->
+            <form method="POST" action="{{ url_for('auth.login') }}" id="loginForm" novalidate>
+
+                <div class="login-field mb-3">
+                    <span class="login-field-icon"><i class="bi bi-person-fill"></i></span>
+                    <input type="text" name="identifier" class="login-input" id="identifierInput"
+                           placeholder="E-posta veya kullanıcı adı" required autofocus autocomplete="username">
+                    <label class="login-label" for="identifierInput">E-posta veya Kullanıcı Adı</label>
+                </div>
+
+                <div class="login-field mb-4">
+                    <span class="login-field-icon"><i class="bi bi-lock-fill"></i></span>
+                    <input type="password" name="password" id="loginPassword" class="login-input"
+                           placeholder="Şifre" required autocomplete="current-password" style="padding-right:3rem;">
+                    <label class="login-label" for="loginPassword">Şifre</label>
+                    <button type="button" class="login-eye-btn" onclick="togglePwd()" tabindex="-1">
+                        <i class="bi bi-eye" id="loginEyeIcon"></i>
+                    </button>
+                </div>
+
+                <button type="submit" class="login-submit-btn" id="loginBtn">
+                    <span class="login-btn-text">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Giriş Yap
+                    </span>
+                    <span class="login-btn-spinner d-none" id="loginSpinner">
+                        <span class="spinner-border spinner-border-sm me-2"></span>Giriş yapılıyor...
+                    </span>
+                </button>
+            </form>
+
+            <!-- Ayraç -->
+            <div class="login-divider"><span>veya hızlı giriş</span></div>
+
+            <!-- Demo hesaplar -->
+            <div class="login-demo-grid" style="grid-template-columns: repeat(3, 1fr);">
+                <button class="login-demo-btn" onclick="fillDemo('ogretmen1','Ogretmen123','Öğretmen Girişi','Öğretmen hesabınızla devam edin','bi bi-person-workspace','#4361ee')">
+                    <div class="login-demo-icon" style="background:linear-gradient(135deg,#4361ee,#7c3aed);">
+                        <i class="bi bi-person-workspace"></i>
+                    </div>
+                    <div>
+                        <div class="login-demo-role">Öğretmen</div>
+                        <div class="login-demo-user">ogretmen1</div>
+                    </div>
+                </button>
+                <button class="login-demo-btn" onclick="fillDemo('ogrenci1','Ogrenci123','Öğrenci Girişi','Öğrenci hesabınızla devam edin','bi bi-person-badge','#10b981')">
+                    <div class="login-demo-icon" style="background:linear-gradient(135deg,#10b981,#059669);">
+                        <i class="bi bi-person-badge"></i>
+                    </div>
+                    <div>
+                        <div class="login-demo-role">Öğrenci</div>
+                        <div class="login-demo-user">ogrenci1</div>
+                    </div>
+                </button>
+                <button class="login-demo-btn" onclick="fillDemo('admin','Admin123','Yönetici Girişi','Yönetici hesabınızla devam edin','bi bi-shield-lock-fill','#f59e0b')">
+                    <div class="login-demo-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);">
+                        <i class="bi bi-shield-lock-fill"></i>
+                    </div>
+                    <div>
+                        <div class="login-demo-role">Yönetici</div>
+                        <div class="login-demo-user">admin</div>
+                    </div>
+                </button>
+            </div>
+
+            <div class="text-center mt-4">
+                <span class="text-muted small">Hesabınız yok mu?</span>
+                <a href="{{ url_for('auth.register') }}" class="auth-link ms-1">Kayıt Ol</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePwd() {
+    const inp  = document.getElementById('loginPassword');
+    const icon = document.getElementById('loginEyeIcon');
+    inp.type   = inp.type === 'password' ? 'text' : 'password';
+    icon.className = inp.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+}
+
+function fillDemo(user, pass, title, subtitle, iconClass, color) {
+    const idInp  = document.getElementById('identifierInput');
+    const pwdInp = document.getElementById('loginPassword');
+    idInp.value  = user;
+    pwdInp.value = pass;
+    idInp.dispatchEvent(new Event('input'));
+    pwdInp.dispatchEvent(new Event('input'));
+
+    // Başlık ve alt yazıyı güncelle
+    if (title) {
+        document.getElementById('loginTitle').innerHTML = title;
+        document.getElementById('loginSubtitle').textContent = subtitle;
+        const badge = document.getElementById('welcomeBadge');
+        badge.innerHTML = `<i class="${iconClass}" style="color:${color};"></i> ${title}`;
+    }
+}
+
+/* Gönder — spinner göster */
+document.getElementById('loginForm').addEventListener('submit', function() {
+    document.getElementById('loginBtn').disabled = true;
+    document.querySelector('.login-btn-text').classList.add('d-none');
+    document.getElementById('loginSpinner').classList.remove('d-none');
+});
+</script>
+{% endblock %}

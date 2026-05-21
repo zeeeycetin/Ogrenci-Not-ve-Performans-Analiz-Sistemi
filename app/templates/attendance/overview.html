@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+{% block title %}Devamsızlık{% endblock %}
+
+{% block content %}
+
+{% if role == 'teacher' %}
+<!-- ═══════════════════════════════════════════════════════
+     ÖĞRETMEN GÖRÜNÜMÜ
+     ═══════════════════════════════════════════════════════ -->
+
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-calendar-check-fill me-2 text-primary"></i>Devamsızlık Raporu</h4>
+        <p class="text-muted mb-0">
+            <span class="badge bg-primary-subtle text-primary me-1">{{ class_name }}</span>
+            Sınıf devamsızlık özeti
+        </p>
+    </div>
+    <a href="{{ url_for('attendance.record_form') }}" class="btn btn-primary">
+        <i class="bi bi-clipboard2-check-fill me-2"></i>Yoklama Al
+    </a>
+</div>
+
+{% if assigned_classes and assigned_classes | length > 1 %}
+<div class="mb-4 d-flex flex-wrap gap-2 align-items-center">
+    <span class="text-muted small me-1"><i class="bi bi-building me-1"></i>Sınıf:</span>
+    {% for cn in assigned_classes %}
+    <a href="{{ url_for('attendance.overview', class_name=cn) }}"
+       class="btn btn-sm {% if cn == class_name %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+        {{ cn }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ students | length }}</div>
+                <div class="stat-label">Toplam Öğrenci</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card {% if at_risk_count > 0 %}stat-card-red{% else %}stat-card-green{% endif %}">
+            <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ at_risk_count }}</div>
+                <div class="stat-label">Risk Altında</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-orange">
+            <div class="stat-icon"><i class="bi bi-clock-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ total_late }}</div>
+                <div class="stat-label">Toplam Geç</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card {% if avg_attendance >= 80 %}stat-card-green{% elif avg_attendance >= 70 %}stat-card-orange{% else %}stat-card-red{% endif %}">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">%{{ avg_attendance }}</div>
+                <div class="stat-label">Ort. Devam</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafik + Tablo -->
+<div class="row g-3 mb-4">
+    <!-- Doughnut dağılımı -->
+    <div class="col-lg-4">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Devam Dağılımı</h6>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center gap-3">
+                <div style="position:relative;width:160px;height:160px;">
+                    <canvas id="attDistChart" width="160" height="160"></canvas>
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+                        <div class="fw-800 text-success" style="font-size:1.5rem;font-weight:800;line-height:1;">%{{ avg_attendance }}</div>
+                        <div style="font-size:.62rem;color:#94a3b8;">Ort. Devam</div>
+                    </div>
+                </div>
+                <!-- Risk dağılımı -->
+                <div class="w-100">
+                    {% set good_count  = students | selectattr('absence_rate', 'lt', 10) | list | length %}
+                    {% set warn_count  = students | selectattr('absence_rate', 'ge', 10) | selectattr('absence_rate', 'lt', 20) | list | length %}
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="d-flex align-items-center gap-1 small"><span style="width:10px;height:10px;border-radius:2px;background:#10b981;display:inline-block;"></span>İyi (&lt;%10)</span>
+                        <span class="fw-bold text-success">{{ good_count }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="d-flex align-items-center gap-1 small"><span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;display:inline-block;"></span>Dikkat (%10-20)</span>
+                        <span class="fw-bold text-warning">{{ warn_count }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="d-flex align-items-center gap-1 small"><span style="width:10px;height:10px;border-radius:2px;background:#ef4444;display:inline-block;"></span>Risk (&gt;%20)</span>
+                        <span class="fw-bold text-danger">{{ at_risk_count }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Devam oranı bar chart -->
+    <div class="col-lg-8">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-bar-chart-fill me-2 text-success"></i>Öğrenci Devam Oranları</h6>
+                <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size:.68rem;">Kırmızı çizgi = %80 eşiği</span>
+            </div>
+            <div class="card-body">
+                <canvas id="studentAttChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Öğrenci tablosu -->
+<div class="card">
+    <div class="card-header">
+        <h6><i class="bi bi-table me-2"></i>Detaylı Devamsızlık Tablosu</h6>
+        <input class="form-control form-control-sm" id="searchInput"
+               placeholder="Öğrenci ara…" oninput="filterTable(this.value)"
+               style="width:200px;">
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="attTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Öğrenci</th>
+                        <th class="text-center">Toplam</th>
+                        <th class="text-center">
+                            <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Devam</span>
+                        </th>
+                        <th class="text-center">
+                            <span class="text-danger"><i class="bi bi-x-circle-fill me-1"></i>Devamsız</span>
+                        </th>
+                        <th class="text-center">
+                            <span class="text-warning"><i class="bi bi-clock-fill me-1"></i>Geç</span>
+                        </th>
+                        <th class="text-center">
+                            <span class="text-info"><i class="bi bi-shield-check me-1"></i>Mazeretli</span>
+                        </th>
+                        <th style="min-width:150px;">Devam Oranı</th>
+                        <th class="text-center">Durum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i, s in enumerate(students) %}
+                    {% set att_rate = (100 - s.absence_rate) | round(1) %}
+                    <tr class="{% if s.absence_rate >= 20 %}table-danger-subtle{% elif s.absence_rate >= 10 %}table-warning-subtle{% endif %}">
+                        <td class="text-muted small">{{ i+1 }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-sm" style="width:32px;height:32px;font-size:.78rem;
+                                    {% if s.absence_rate >= 20 %}background:linear-gradient(135deg,#ef4444,#dc2626);
+                                    {% elif s.absence_rate >= 10 %}background:linear-gradient(135deg,#f59e0b,#d97706);
+                                    {% else %}background:linear-gradient(135deg,#10b981,#059669);{% endif %}">
+                                    {{ s.full_name[0] }}
+                                </div>
+                                <div>
+                                    <div class="fw-semibold small">{{ s.full_name }}</div>
+                                    <code class="text-muted" style="font-size:.68rem;">{{ s.student_number }}</code>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="text-center fw-semibold">{{ s.total }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-success bg-opacity-15 text-success fw-bold">{{ s.present if s.present is defined else (s.total - s.absent - s.late) }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {% if s.absent > 0 %}bg-danger bg-opacity-15 text-danger{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} fw-bold">{{ s.absent }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {% if s.late > 0 %}bg-warning bg-opacity-25 text-warning{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %} fw-bold">{{ s.late }}</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-info bg-opacity-15 text-info fw-bold">{{ s.excused or 0 }}</span>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress flex-grow-1" style="height:8px;">
+                                    <div class="progress-bar {% if att_rate >= 80 %}bg-success{% elif att_rate >= 70 %}bg-warning{% else %}bg-danger{% endif %}"
+                                         style="width:{{ att_rate }}%"></div>
+                                </div>
+                                <small class="fw-bold {% if att_rate >= 80 %}text-success{% elif att_rate >= 70 %}text-warning{% else %}text-danger{% endif %}" style="min-width:38px;">%{{ att_rate }}</small>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if s.absence_rate >= 20 %}
+                            <span class="badge bg-danger"><i class="bi bi-exclamation-triangle-fill me-1"></i>Risk</span>
+                            {% elif s.absence_rate >= 10 %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-circle me-1"></i>Dikkat</span>
+                            {% else %}
+                            <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>İyi</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if at_risk_count > 0 %}
+    <div class="card-footer bg-white border-top">
+        <div class="d-flex align-items-center gap-2 py-1" style="font-size:.82rem;color:#991b1b;">
+            <i class="bi bi-exclamation-triangle-fill text-danger flex-shrink-0"></i>
+            <span><strong>{{ at_risk_count }} öğrenci</strong> %20 devamsızlık sınırını aştı. Erken müdahale önerilir.</span>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% else %}
+<!-- ═══════════════════════════════════════════════════════
+     ÖĞRENCİ GÖRÜNÜMÜ
+     ═══════════════════════════════════════════════════════ -->
+
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-calendar-check-fill me-2 text-primary"></i>Devamsızlık Durumum</h4>
+        <p class="text-muted mb-0">Ders bazlı devamsızlık ve devam oranlarınız</p>
+    </div>
+</div>
+
+<!-- Genel özet banner -->
+<div class="att-student-banner mb-4
+    {% if summary.absence_rate > 20 %}att-banner-danger
+    {% elif summary.absence_rate > 10 %}att-banner-warning
+    {% else %}att-banner-good{% endif %}">
+    <div class="d-flex align-items-center gap-4 flex-wrap">
+        <!-- Doughnut -->
+        <div style="position:relative;width:110px;height:110px;flex-shrink:0;">
+            <canvas id="overallAttChart" width="110" height="110"></canvas>
+            <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+                <span class="fw-800" style="font-size:1.4rem;font-weight:800;color:{% if summary.absence_rate > 20 %}#ef4444{% elif summary.absence_rate > 10 %}#f59e0b{% else %}#10b981{% endif %};">
+                    %{{ summary.attendance_rate }}
+                </span>
+                <span style="font-size:.6rem;color:#94a3b8;">devam</span>
+            </div>
+        </div>
+        <!-- Sayılar -->
+        <div class="row g-3 flex-grow-1">
+            <div class="col-6 col-md-3">
+                <div class="att-mini-stat">
+                    <div class="att-mini-val text-primary">{{ summary.total_days }}</div>
+                    <div class="att-mini-lbl">Toplam Gün</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="att-mini-stat">
+                    <div class="att-mini-val text-success">{{ summary.present }}</div>
+                    <div class="att-mini-lbl">Geldi</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="att-mini-stat">
+                    <div class="att-mini-val {% if summary.absent > 0 %}text-danger{% else %}text-success{% endif %}">{{ summary.absent }}</div>
+                    <div class="att-mini-lbl">Devamsız (%{{ summary.absence_rate }})</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="att-mini-stat">
+                    <div class="att-mini-val text-warning">{{ summary.late }}</div>
+                    <div class="att-mini-lbl">Geç Kalma</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Progress bar -->
+    <div class="mt-3 pt-3 border-top border-white border-opacity-10">
+        <div class="d-flex justify-content-between mb-1">
+            <small class="fw-semibold" style="color:rgba(255,255,255,.7);">Genel Devam Oranı</small>
+            <small class="fw-bold" style="color:#fff;">%{{ summary.attendance_rate }}</small>
+        </div>
+        <div class="progress" style="height:8px;background:rgba(255,255,255,.15);">
+            <div class="progress-bar" style="width:{{ summary.attendance_rate }}%;background:{% if summary.attendance_rate >= 80 %}#10b981{% elif summary.attendance_rate >= 70 %}#f59e0b{% else %}#ef4444{% endif %};border-radius:4px;"></div>
+        </div>
+        {% if summary.absence_rate > 20 %}
+        <div class="mt-2 d-flex align-items-center gap-2" style="font-size:.78rem;color:#fca5a5;">
+            <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+            Devamsızlık oranınız %20 sınırını aştı! Derslere katılımınızı artırmanız zorunludur.
+        </div>
+        {% elif summary.absence_rate > 10 %}
+        <div class="mt-2 d-flex align-items-center gap-2" style="font-size:.78rem;color:#fcd34d;">
+            <i class="bi bi-exclamation-circle flex-shrink-0"></i>
+            Devamsızlık oranınız %10'un üzerinde. Dikkatli olunuz.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Ders bazlı devamsızlık -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6><i class="bi bi-book-fill me-2 text-primary"></i>Ders Bazlı Devamsızlık</h6>
+        <span class="badge bg-primary-subtle text-primary">{{ course_stats | length }} ders</span>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            {% for c in course_stats %}
+            {% set att_pct = (100 - c.absence_rate) | round(1) %}
+            <div class="col-md-6">
+                <div class="course-att-detail-card">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div class="fw-bold small">{{ c.course_name }}</div>
+                            <code class="text-muted" style="font-size:.68rem;">{{ c.course_code }}</code>
+                        </div>
+                        <span class="badge {% if att_pct < 80 %}bg-danger{% elif att_pct < 90 %}bg-warning text-dark{% else %}bg-success{% endif %}" style="font-size:.65rem;">
+                            {% if att_pct < 80 %}Risk{% elif att_pct < 90 %}Dikkat{% else %}İyi{% endif %}
+                        </span>
+                    </div>
+                    <!-- Mini stat row -->
+                    <div class="d-flex gap-2 mb-2">
+                        <div class="flex-fill text-center p-1 rounded" style="background:#f0fdf4;font-size:.7rem;">
+                            <div class="fw-bold text-success">{{ c.present }}</div>
+                            <div style="color:#94a3b8;">Geldi</div>
+                        </div>
+                        <div class="flex-fill text-center p-1 rounded" style="background:#fef2f2;font-size:.7rem;">
+                            <div class="fw-bold text-danger">{{ c.absent }}</div>
+                            <div style="color:#94a3b8;">Gelmedi</div>
+                        </div>
+                        <div class="flex-fill text-center p-1 rounded" style="background:#fefce8;font-size:.7rem;">
+                            <div class="fw-bold text-warning">{{ c.late }}</div>
+                            <div style="color:#94a3b8;">Geç</div>
+                        </div>
+                        <div class="flex-fill text-center p-1 rounded" style="background:#eff6ff;font-size:.7rem;">
+                            <div class="fw-bold text-primary">{{ c.total }}</div>
+                            <div style="color:#94a3b8;">Toplam</div>
+                        </div>
+                    </div>
+                    <!-- Progress -->
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="progress flex-grow-1" style="height:7px;">
+                            <div class="progress-bar {% if att_pct >= 80 %}bg-success{% elif att_pct >= 70 %}bg-warning{% else %}bg-danger{% endif %}"
+                                 style="width:{{ att_pct }}%"></div>
+                        </div>
+                        <span class="fw-bold small {% if att_pct >= 80 %}text-success{% elif att_pct >= 70 %}text-warning{% else %}text-danger{% endif %}" style="min-width:42px;text-align:right;">%{{ att_pct }}</span>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="empty-state py-4">
+                    <i class="bi bi-calendar3"></i>
+                    <p>Devamsızlık kaydı bulunamadı.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if role == 'teacher' %}
+const students = {{ students | tojson | safe }};
+const avgAtt   = {{ avg_attendance }};
+const atRisk   = {{ at_risk_count }};
+
+// Dağılım doughnut
+(function() {
+    const good = students.filter(s => s.absence_rate < 10).length;
+    const warn = students.filter(s => s.absence_rate >= 10 && s.absence_rate < 20).length;
+    const risk = students.filter(s => s.absence_rate >= 20).length;
+    const ctx  = document.getElementById('attDistChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['İyi', 'Dikkat', 'Risk'],
+            datasets: [{
+                data: [good || 0.001, warn || 0.001, risk || 0.001],
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                borderWidth: 0, hoverOffset: 6
+            }]
+        },
+        options: {
+            cutout: '68%', responsive: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: true } }
+        }
+    });
+})();
+
+// Öğrenci devam bar chart
+(function() {
+    const ctx    = document.getElementById('studentAttChart').getContext('2d');
+    const rates  = students.map(s => parseFloat((100 - s.absence_rate).toFixed(1)));
+    const colors = rates.map(r => r >= 80 ? '#10b981' : r >= 70 ? '#f59e0b' : '#ef4444');
+    const labels = students.map(s => s.full_name.split(' ')[0]);
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Devam %',
+                data: rates,
+                backgroundColor: colors.map(c => c + 'cc'),
+                borderColor: colors,
+                borderWidth: 1.5, borderRadius: 6, borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                annotation: {},
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    callbacks: {
+                        title: (items) => students[items[0].dataIndex]?.full_name || '',
+                        label: ctx => ` Devam: %${ctx.parsed.y}`,
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false, min: 40, max: 100,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { font: { family: 'Montserrat', size: 10 }, callback: v => '%' + v }
+                },
+                x: { grid: { display: false }, ticks: { font: { family: 'Montserrat', size: 9 }, maxRotation: 30 } }
+            }
+        },
+        plugins: [{
+            id: 'thresholdLine',
+            afterDraw(chart) {
+                const { ctx, scales: { y } } = chart;
+                const y80 = y.getPixelForValue(80);
+                ctx.save();
+                ctx.strokeStyle = '#ef444499';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([5, 4]);
+                ctx.beginPath();
+                ctx.moveTo(chart.chartArea.left, y80);
+                ctx.lineTo(chart.chartArea.right, y80);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }]
+    });
+})();
+
+function filterTable(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#attTable tbody tr').forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+{% else %}
+const absRate    = {{ summary.absence_rate }};
+const attRate    = {{ summary.attendance_rate }};
+
+// Genel devam doughnut
+(function() {
+    const ctx = document.getElementById('overallAttChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            datasets: [{
+                data: [attRate, 100 - attRate],
+                backgroundColor: [
+                    attRate >= 80 ? '#10b981' : attRate >= 70 ? '#f59e0b' : '#ef4444',
+                    'rgba(255,255,255,.15)'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            cutout: '72%', responsive: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+    });
+})();
+{% endif %}
+</script>
+{% endblock %}

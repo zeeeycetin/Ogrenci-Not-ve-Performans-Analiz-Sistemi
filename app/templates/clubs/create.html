@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Kulüp Oluştur{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-plus-circle-fill me-2 text-primary"></i>Yeni Kulüp Oluştur</h4>
+        <p class="text-muted mb-0">Yeni bir kulüp veya etkinlik grubu ekleyin</p>
+    </div>
+    <a href="{{ url_for('clubs.list_clubs') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Geri
+    </a>
+</div>
+
+<div class="card" style="max-width:560px;">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Kulüp Adı <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control" required placeholder="ör. Satranç Kulübü">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Açıklama</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Kulüp hakkında kısa bilgi..."></textarea>
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Kategori</label>
+                    <select name="category" class="form-select">
+                        <option value="genel">Genel</option>
+                        <option value="spor">Spor</option>
+                        <option value="sanat">Sanat</option>
+                        <option value="bilim">Bilim & Teknoloji</option>
+                        <option value="kultur">Kültür</option>
+                        <option value="muzik">Müzik</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Kontenjan</label>
+                    <input type="number" name="max_members" class="form-control" value="30" min="5" max="200">
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Toplantı Günü</label>
+                    <select name="meeting_day" class="form-select">
+                        <option value="">-- Seçin --</option>
+                        {% for day in ['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'] %}
+                        <option value="{{ day }}">{{ day }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Saat</label>
+                    <input type="time" name="meeting_time" class="form-control">
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-check-circle-fill me-1"></i>Kulübü Oluştur
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

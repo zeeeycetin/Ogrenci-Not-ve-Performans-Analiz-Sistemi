@@ -1,0 +1,711 @@
+{% extends "base.html" %}
+{% block title %}Öğrenci Performansları{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Öğrenci Performansları</h4>
+        <p class="text-muted mb-0">{{ students|length }} öğrenci listeleniyor</p>
+    </div>
+    <a href="{{ url_for('admin.admin_performances') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-counterclockwise me-1"></i>Sıfırla
+    </a>
+</div>
+
+<!-- Özet Kartlar -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ students|length }}</div>
+                <div class="stat-label">Toplam Öğrenci</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-bar-chart-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ summary.mean if summary.mean else '—' }}</div>
+                <div class="stat-label">Genel Ortalama</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-orange">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ summary.passing }}</div>
+                <div class="stat-label">Başarılı Öğrenci</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="bi bi-trophy-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ summary.max if summary.max else '—' }}</div>
+                <div class="stat-label">En Yüksek Ort.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafik Başlığı -->
+<div class="d-flex align-items-center gap-2 mb-3">
+    <span class="fw-semibold text-secondary small text-uppercase" style="letter-spacing:.05em;">Performans Grafikleri</span>
+    <span class="badge bg-primary rounded-pill">{{ students|length }} öğrenci</span>
+    {% if class_filter or label_filter or search %}
+    <span class="badge bg-warning text-dark rounded-pill">Filtre uygulandı</span>
+    {% endif %}
+</div>
+
+<!-- Grafikler -->
+<div class="row g-3 mb-4">
+
+    <!-- Performans Etiketi Dağılımı -->
+    <div class="col-lg-3 col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0 small fw-bold"><i class="bi bi-pie-chart-fill me-1 text-primary"></i>Performans Dağılımı</h6>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center py-3">
+                <div style="position:relative;height:180px;width:180px;">
+                    <canvas id="labelDistChart"></canvas>
+                </div>
+                <div class="mt-3 w-100" style="font-size:.75rem;">
+                    {% for lbl, cnt in label_dist.items() %}
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="text-muted">{{ lbl }}</span>
+                        <span class="badge bg-secondary">{{ cnt }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Seviyesi Dağılımı -->
+    <div class="col-lg-3 col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0 small fw-bold"><i class="bi bi-shield-exclamation me-1 text-danger"></i>Risk Dağılımı</h6>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center py-3">
+                <div style="position:relative;height:180px;width:180px;">
+                    <canvas id="riskDistChart"></canvas>
+                </div>
+                <div class="mt-3 w-100" style="font-size:.75rem;">
+                    {% for lbl, key, col in [('Düşük','low','#10b981'),('Orta','medium','#f59e0b'),('Yüksek','high','#f97316'),('Kritik','critical','#ef4444')] %}
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span><i class="bi bi-circle-fill me-1" style="color:{{ col }};font-size:.45rem;vertical-align:middle;"></i>{{ lbl }}</span>
+                        <span class="fw-bold" style="color:{{ col }};">{{ risk_dist[key] }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Not Aralığı Dağılımı -->
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0 small fw-bold"><i class="bi bi-bar-chart-fill me-1 text-success"></i>Not Aralığı Dağılımı</h6>
+            </div>
+            <div class="card-body" style="position:relative;min-height:220px;">
+                <canvas id="scoreRangeChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sınıf Ortalaması + Trend -->
+<div class="row g-3 mb-4">
+
+    <!-- Sınıf Bazlı Ortalama -->
+    {% if class_avg_data %}
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0 small fw-bold"><i class="bi bi-diagram-3-fill me-1 text-warning"></i>Sınıf Bazlı Not Ortalaması</h6>
+            </div>
+            <div class="card-body" style="position:relative;min-height:200px;">
+                <canvas id="classAvgChart"></canvas>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Trend Dağılımı -->
+    <div class="col-lg-{{ '4' if class_avg_data else '12' }}">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6 class="mb-0 small fw-bold"><i class="bi bi-arrow-left-right me-1 text-info"></i>Not Trendi</h6>
+            </div>
+            <div class="card-body d-flex flex-column gap-3 justify-content-center py-4">
+                {% for lbl, key, col, icon in [
+                    ('Yükselen','Yükselen','#10b981','arrow-up-circle-fill'),
+                    ('Stabil','Stabil','#3b82f6','dash-circle-fill'),
+                    ('Düşen','Düşen','#ef4444','arrow-down-circle-fill'),
+                    ('Diğer / Belirsiz','Diğer','#94a3b8','question-circle-fill')
+                ] %}
+                <div class="d-flex align-items-center justify-content-between p-2 rounded"
+                     style="background:#f8fafc;border:1px solid #e2e8f0;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-{{ icon }}" style="color:{{ col }};font-size:1.3rem;"></i>
+                        <span class="fw-semibold small">{{ lbl }}</span>
+                    </div>
+                    <span class="fw-bold" style="color:{{ col }};font-size:1.1rem;">
+                        {{ trend_dist[key] }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtre -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <form class="row g-2 align-items-end" method="GET">
+            <div class="col-12 col-md-4">
+                <label class="form-label small mb-1">Öğrenci Ara</label>
+                <input type="text" name="search" class="form-control form-control-sm"
+                       placeholder="Ad Soyad..." value="{{ search }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">Sınıf</label>
+                <select name="class_name" class="form-select form-select-sm">
+                    <option value="">Tüm Sınıflar</option>
+                    {% for c in classes %}
+                    <option value="{{ c }}" {% if c == class_filter %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small mb-1">Performans Etiketi</label>
+                <select name="performance_label" class="form-select form-select-sm">
+                    <option value="">Tüm Etiketler</option>
+                    {% for l in labels %}
+                    <option value="{{ l }}" {% if l == label_filter %}selected{% endif %}>{{ l }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-sm btn-primary" type="submit">
+                    <i class="bi bi-funnel-fill me-1"></i>Filtrele
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tablo -->
+{% set perf_order = {
+    'Kritik Seviye': 1, 'Sınırda': 2,
+    'Geliştirilmeli': 3, 'Orta': 3,
+    'Ortalamanın Üstünde': 4, 'İyi': 4,
+    'Üstün Başarılı': 5, 'Mükemmel': 5
+} %}
+{% set risk_order = {'low': 1, 'medium': 2, 'high': 3, 'critical': 4} %}
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="perfTable" class="table table-hover align-middle mb-0" style="font-size:.875rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th class="sortable" data-col="0" data-type="text" style="cursor:pointer;white-space:nowrap;">
+                            Öğrenci <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="sortable" data-col="1" data-type="text" style="cursor:pointer;white-space:nowrap;">
+                            Sınıf <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="sortable text-center" data-col="2" data-type="num" style="cursor:pointer;white-space:nowrap;">
+                            Genel Ort. <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="sortable text-center" data-col="3" data-type="num" style="cursor:pointer;white-space:nowrap;">
+                            Performans <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="sortable text-center" data-col="4" data-type="num" style="cursor:pointer;white-space:nowrap;">
+                            Risk <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="sortable text-center" data-col="5" data-type="text" style="cursor:pointer;white-space:nowrap;">
+                            Trend <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="sortable text-center" data-col="6" data-type="num" style="cursor:pointer;white-space:nowrap;">
+                            Devamsız <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="sortable text-center" data-col="7" data-type="text" style="cursor:pointer;white-space:nowrap;">
+                            Son Analiz <i class="bi bi-arrow-down-up text-muted ms-1" style="font-size:.7rem;"></i>
+                        </th>
+                        <th class="text-end">Detay</th>
+                    </tr>
+                    <!-- Kolon filtre satırı -->
+                    <tr id="filterRow">
+                        {% for ph in ['Ad ara…', 'Sınıf ara…', 'Ort. ara…', 'Etiket ara…', 'Risk ara…', 'Trend ara…', 'Gün ara…', 'Tarih ara…'] %}
+                        <th class="p-1">
+                            <input type="text" class="form-control form-control-sm col-filter"
+                                   data-col="{{ loop.index0 }}"
+                                   placeholder="{{ ph }}"
+                                   style="font-size:.75rem;min-width:60px;">
+                        </th>
+                        {% endfor %}
+                        <th class="p-1 text-end">
+                            <button class="btn btn-xs btn-outline-secondary py-0 px-1" id="clearFilters"
+                                    style="font-size:.72rem;" title="Filtreleri temizle">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in students %}
+                    {% set avg = s.overall_average %}
+                    {% set lbl = s.performance_label or '' %}
+                    {% set risk = s.risk_level or '' %}
+                    {% set trend = s.grade_trend or '' %}
+                    <tr>
+                        <td class="fw-semibold" data-val="{{ s.full_name }}">{{ s.full_name }}</td>
+
+                        <td class="text-muted small" data-val="{{ s.class_name or '' }}">
+                            {{ s.student_number or '—' }}<br>
+                            <span class="badge bg-primary-subtle text-primary">{{ s.class_name or '—' }}</span>
+                        </td>
+
+                        <td class="text-center" data-val="{{ avg|float if (avg is defined and avg is not none and avg != '') else -1 }}">
+                            {% if avg is defined and avg is not none and avg != '' %}
+                            <span class="fw-bold
+                                {% if avg|float >= 85 %}text-success
+                                {% elif avg|float >= 70 %}text-primary
+                                {% elif avg|float >= 50 %}text-warning
+                                {% else %}text-danger{% endif %}">
+                                {{ "%.1f"|format(avg|float) }}
+                            </span>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+
+                        <td class="text-center" data-val="{{ perf_order.get(lbl, 0) }}">
+                            {% if lbl %}
+                            <span class="badge
+                                {% if lbl in ['Mükemmel','Üstün Başarılı'] %}bg-success
+                                {% elif lbl in ['İyi','Ortalamanın Üstünde'] %}bg-primary
+                                {% elif lbl in ['Orta','Geliştirilmeli','Sınırda'] %}bg-warning text-dark
+                                {% elif lbl == 'Kritik Seviye' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ lbl }}
+                            </span>
+                            {% else %}<span class="text-muted small">—</span>{% endif %}
+                        </td>
+
+                        <td class="text-center" data-val="{{ risk_order.get(risk, 0) }}">
+                            {% if risk == 'critical' %}<span class="badge bg-danger">Kritik</span>
+                            {% elif risk == 'high' %}<span class="badge bg-warning text-dark">Yüksek</span>
+                            {% elif risk == 'medium' %}<span class="badge bg-info text-white">Orta</span>
+                            {% elif risk == 'low' %}<span class="badge bg-success">Düşük</span>
+                            {% else %}<span class="text-muted small">—</span>{% endif %}
+                        </td>
+
+                        <td class="text-center" data-val="{{ trend }}">
+                            {% if trend == 'Yükselen' %}
+                            <span class="text-success small"><i class="bi bi-arrow-up-circle-fill"></i> Yükselen</span>
+                            {% elif trend == 'Düşen' %}
+                            <span class="text-danger small"><i class="bi bi-arrow-down-circle-fill"></i> Düşen</span>
+                            {% elif trend == 'Stabil' %}
+                            <span class="text-secondary small"><i class="bi bi-dash-circle-fill"></i> Stabil</span>
+                            {% else %}<span class="text-muted small">—</span>{% endif %}
+                        </td>
+
+                        <td class="text-center" data-val="{{ s.absent_count }}">
+                            {% if s.absent_count > 0 %}
+                            <span class="badge
+                                {% if s.absent_count >= 10 %}bg-danger
+                                {% elif s.absent_count >= 5 %}bg-warning text-dark
+                                {% else %}bg-secondary{% endif %}">
+                                {{ s.absent_count }} gün
+                            </span>
+                            {% if s.late_count %}
+                            <br><span class="badge bg-info-subtle text-info" style="font-size:.7rem;">+{{ s.late_count }} geç</span>
+                            {% endif %}
+                            {% else %}<span class="text-muted small">—</span>{% endif %}
+                        </td>
+
+                        <td class="text-center text-muted small" data-val="{{ s.last_analysis or '' }}">
+                            {{ s.last_analysis or '—' }}
+                        </td>
+
+                        <td class="text-end">
+                            <a href="{{ url_for('analytics.student_analysis', student_id=s.id) }}"
+                               class="btn btn-sm btn-outline-primary" title="Performans Detayı">
+                                <i class="bi bi-graph-up"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox opacity-25 d-block mb-2" style="font-size:2rem;"></i>
+                            Filtrelerle eşleşen öğrenci bulunamadı.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<!-- ══════════════════════════════════════════════════════════
+     ÖĞRETMEN KALİTE ANALİZİ
+     ══════════════════════════════════════════════════════════ -->
+<div class="d-flex align-items-center gap-2 mb-3 mt-5">
+    <span class="fw-semibold text-secondary small text-uppercase" style="letter-spacing:.05em;">Öğretmen Kalite Analizi</span>
+    <span class="badge bg-primary rounded-pill">{{ teacher_quality|length }} öğretmen</span>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-bold">
+            <i class="bi bi-person-workspace me-2 text-primary"></i>Öğretmen Performans Değerlendirmesi
+        </h6>
+        <span class="text-muted small">Atanan sınıflardaki öğrenci başarısına göre hesaplanır</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" style="font-size:.875rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Öğretmen</th>
+                        <th>Branş</th>
+                        <th>Atanan Sınıflar</th>
+                        <th class="text-center">Öğrenci Sayısı</th>
+                        <th class="text-center">Sınıf Ort.</th>
+                        <th class="text-center">Başarılı</th>
+                        <th class="text-center">Risk'teki</th>
+                        <th class="text-center">Geçme Oranı</th>
+                        <th class="text-center">Kalite Puanı</th>
+                        <th class="text-center">Değerlendirme</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in teacher_quality %}
+                    <tr>
+                        <td class="fw-semibold">{{ t.full_name }}</td>
+                        <td class="text-muted small">{{ t.branch or '—' }}</td>
+                        <td>
+                            {% if t.classes %}
+                            {% for cls in t.classes %}
+                            <span class="badge bg-primary-subtle text-primary me-1">{{ cls }}</span>
+                            {% endfor %}
+                            {% else %}
+                            <span class="text-muted small">Atanmamış</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="fw-bold">{{ t.total_students }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if t.mean_avg is not none %}
+                            <span class="fw-bold
+                                {% if t.mean_avg >= 70 %}text-success
+                                {% elif t.mean_avg >= 50 %}text-warning
+                                {% else %}text-danger{% endif %}">
+                                {{ t.mean_avg }}
+                            </span>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if t.total_students > 0 %}
+                            <span class="badge bg-success">{{ t.passing }}</span>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if t.at_risk > 0 %}
+                            <span class="badge bg-danger">{{ t.at_risk }}</span>
+                            {% else %}
+                            <span class="badge bg-success-subtle text-success">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if t.total_students > 0 %}
+                            <div class="d-flex align-items-center justify-content-center gap-2">
+                                <div class="progress" style="width:60px;height:8px;">
+                                    <div class="progress-bar
+                                        {% if t.passing_rate >= 70 %}bg-success
+                                        {% elif t.passing_rate >= 50 %}bg-warning
+                                        {% else %}bg-danger{% endif %}"
+                                        style="width:{{ t.passing_rate }}%"></div>
+                                </div>
+                                <span class="small fw-semibold">{{ t.passing_rate }}%</span>
+                            </div>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if t.quality_score is not none %}
+                            <span class="fw-bold fs-6
+                                {% if t.quality_score >= 75 %}text-success
+                                {% elif t.quality_score >= 60 %}text-primary
+                                {% elif t.quality_score >= 45 %}text-warning
+                                {% else %}text-danger{% endif %}">
+                                {{ t.quality_score }}
+                            </span>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if t.quality_label == 'Mükemmel' %}
+                            <span class="badge bg-success"><i class="bi bi-star-fill me-1"></i>Mükemmel</span>
+                            {% elif t.quality_label == 'İyi' %}
+                            <span class="badge bg-primary"><i class="bi bi-hand-thumbs-up-fill me-1"></i>İyi</span>
+                            {% elif t.quality_label == 'Orta' %}
+                            <span class="badge bg-warning text-dark"><i class="bi bi-dash-circle me-1"></i>Orta</span>
+                            {% elif t.quality_label == 'Gelişmeli' %}
+                            <span class="badge bg-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Gelişmeli</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Veri Yok</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-5">
+                            <i class="bi bi-person-workspace opacity-25 d-block mb-2" style="font-size:2rem;"></i>
+                            Öğretmen kaydı bulunamadı.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-light">
+        <small class="text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>Kalite Puanı</strong> = Sınıf Ortalaması × 0.6 + Geçme Oranı × 0.4 &nbsp;|&nbsp;
+            <span class="text-success fw-semibold">Mükemmel ≥75</span> &nbsp;
+            <span class="text-primary fw-semibold">İyi ≥60</span> &nbsp;
+            <span class="text-warning fw-semibold">Orta ≥45</span> &nbsp;
+            <span class="text-danger fw-semibold">Gelişmeli &lt;45</span>
+        </small>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const labelDist    = {{ label_dist    | tojson | safe }};
+const riskDist     = {{ risk_dist     | tojson | safe }};
+const scoreRanges  = {{ score_ranges  | tojson | safe }};
+const classAvgData = {{ class_avg_data | tojson | safe }};
+
+/* ── Kolon Filtresi ── */
+(function () {
+    const inputs = document.querySelectorAll('.col-filter');
+    const tbody  = document.querySelector('#perfTable tbody');
+    const clearBtn = document.getElementById('clearFilters');
+
+    function applyFilters() {
+        const filters = Array.from(inputs).map(inp => ({
+            col: parseInt(inp.dataset.col),
+            val: inp.value.trim().toLowerCase(),
+        })).filter(f => f.val !== '');
+
+        tbody.querySelectorAll('tr').forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (!cells.length) return;
+            const match = filters.every(f => {
+                const cell = cells[f.col];
+                if (!cell) return true;
+                return cell.textContent.trim().toLowerCase().includes(f.val);
+            });
+            row.style.display = match ? '' : 'none';
+        });
+    }
+
+    inputs.forEach(inp => inp.addEventListener('input', applyFilters));
+
+    clearBtn?.addEventListener('click', () => {
+        inputs.forEach(inp => { inp.value = ''; });
+        tbody.querySelectorAll('tr').forEach(r => r.style.display = '');
+    });
+})();
+
+/* ── Tablo Sıralama ── */
+(function () {
+    const table   = document.getElementById('perfTable');
+    if (!table) return;
+    const tbody   = table.querySelector('tbody');
+    const headers = table.querySelectorAll('th.sortable');
+    let   sortCol = null, sortAsc = true;
+
+    const ICONS = {
+        none: 'bi-arrow-down-up text-muted',
+        asc:  'bi-arrow-up text-primary',
+        desc: 'bi-arrow-down text-primary',
+    };
+
+    function setIcon(th, state) {
+        const i = th.querySelector('i');
+        if (!i) return;
+        i.className = 'bi ms-1 ' + ICONS[state];
+        i.style.fontSize = '.7rem';
+    }
+
+    headers.forEach(th => {
+        th.addEventListener('click', () => {
+            const col  = parseInt(th.dataset.col);
+            const type = th.dataset.type;
+
+            if (sortCol === col) {
+                sortAsc = !sortAsc;
+            } else {
+                sortCol = col;
+                sortAsc = true;
+            }
+
+            headers.forEach(h => setIcon(h, 'none'));
+            setIcon(th, sortAsc ? 'asc' : 'desc');
+
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+                const aCell = a.querySelectorAll('td')[col];
+                const bCell = b.querySelectorAll('td')[col];
+                if (!aCell || !bCell) return 0;
+
+                let aVal = aCell.dataset.val ?? aCell.textContent.trim();
+                let bVal = bCell.dataset.val ?? bCell.textContent.trim();
+
+                if (type === 'num') {
+                    aVal = parseFloat(aVal);
+                    bVal = parseFloat(bVal);
+                    if (isNaN(aVal)) aVal = -Infinity;
+                    if (isNaN(bVal)) bVal = -Infinity;
+                }
+
+                if (aVal < bVal) return sortAsc ? -1 : 1;
+                if (aVal > bVal) return sortAsc ? 1 : -1;
+                return 0;
+            });
+
+            rows.forEach(r => tbody.appendChild(r));
+        });
+    });
+})();
+
+/* ── Performans Etiketi Doughnut ── */
+(function () {
+    const colorMap = {
+        'Üstün Başarılı': '#10b981', 'Mükemmel': '#10b981',
+        'Ortalamanın Üstünde': '#3b82f6', 'İyi': '#3b82f6',
+        'Geliştirilmeli': '#f59e0b', 'Orta': '#f59e0b',
+        'Sınırda': '#f97316',
+        'Kritik Seviye': '#ef4444',
+        'Belirsiz': '#94a3b8',
+    };
+    new Chart(document.getElementById('labelDistChart'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(labelDist),
+            datasets: [{
+                data: Object.values(labelDist),
+                backgroundColor: Object.keys(labelDist).map(k => colorMap[k] || '#94a3b8'),
+                borderWidth: 2, borderColor: '#fff', hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '62%',
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b' } }
+        }
+    });
+})();
+
+/* ── Risk Doughnut ── */
+(function () {
+    new Chart(document.getElementById('riskDistChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Düşük', 'Orta', 'Yüksek', 'Kritik'],
+            datasets: [{
+                data: [riskDist.low || 0, riskDist.medium || 0, riskDist.high || 0, riskDist.critical || 0],
+                backgroundColor: ['#10b981', '#f59e0b', '#f97316', '#ef4444'],
+                borderWidth: 2, borderColor: '#fff', hoverOffset: 6,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, cutout: '62%',
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1e293b' } }
+        }
+    });
+})();
+
+/* ── Not Aralığı Bar ── */
+(function () {
+    const labels = Object.keys(scoreRanges);
+    const colors = ['#ef4444','#f97316','#f59e0b','#3b82f6','#10b981','#6d28d9'];
+    new Chart(document.getElementById('scoreRangeChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Öğrenci Sayısı',
+                data: Object.values(scoreRanges),
+                backgroundColor: colors.map(c => c + 'bb'),
+                borderColor: colors,
+                borderWidth: 1.5, borderRadius: 8, borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#1e293b', callbacks: {
+                    label: ctx => ` ${ctx.raw} öğrenci`
+                }}
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: '#f1f5f9' } },
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            }
+        }
+    });
+})();
+
+/* ── Sınıf Ortalaması Bar ── */
+(function () {
+    const el = document.getElementById('classAvgChart');
+    if (!el || !classAvgData.length) return;
+    new Chart(el, {
+        type: 'bar',
+        data: {
+            labels: classAvgData.map(c => c.class_name),
+            datasets: [{
+                label: 'Sınıf Ortalaması',
+                data: classAvgData.map(c => c.average),
+                backgroundColor: classAvgData.map(c =>
+                    c.average >= 70 ? '#10b98199' : c.average >= 50 ? '#f59e0b99' : '#ef444499'
+                ),
+                borderColor: classAvgData.map(c =>
+                    c.average >= 70 ? '#10b981' : c.average >= 50 ? '#f59e0b' : '#ef4444'
+                ),
+                borderWidth: 1.5, borderRadius: 8, borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { backgroundColor: '#1e293b', callbacks: {
+                    label: ctx => ` Ort: ${ctx.raw}`
+                }}
+            },
+            scales: {
+                y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' },
+                     ticks: { font: { size: 11 } } },
+                x: { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 20 } }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

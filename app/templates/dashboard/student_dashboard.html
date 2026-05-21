@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}Öğrenci Paneli{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-speedometer2 me-2 text-primary"></i>Öğrenci Paneli</h4>
+        <p class="text-muted mb-0">
+            {{ student.class_name }} ·
+            <code>{{ student.student_number }}</code>
+            {% if student.performance_label %}
+            · <span class="badge
+                {% if student.performance_label == 'Üstün Başarılı' %}bg-success
+                {% elif student.performance_label == 'Ortalamanın Üstünde' %}bg-primary
+                {% elif student.performance_label == 'Geliştirilmeli' %}bg-warning text-dark
+                {% elif student.performance_label == 'Sınırda' %}bg-orange text-dark
+                {% else %}bg-danger{% endif %}">{{ student.performance_label }}</span>
+            {% endif %}
+        </p>
+    </div>
+    {% if nav_student_id %}
+    <button class="btn btn-sm btn-primary" onclick="generateRecs('{{ nav_student_id }}')">
+        <i class="bi bi-lightning-fill me-1"></i>Öneri Üret
+    </button>
+    {% endif %}
+</div>
+
+<!-- Stat Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ dashboard.overall_average }}</div>
+                <div class="stat-label">Genel Ortalama</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card {% if dashboard.failing_courses_count > 0 %}stat-card-red{% else %}stat-card-green{% endif %}">
+            <div class="stat-icon"><i class="bi bi-{% if dashboard.failing_courses_count > 0 %}x-circle-fill{% else %}check-circle-fill{% endif %}"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ dashboard.failing_courses_count }}</div>
+                <div class="stat-label">Başarısız Ders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card {% if dashboard.absence_rate > 20 %}stat-card-red{% elif dashboard.absence_rate > 10 %}stat-card-orange{% else %}stat-card-green{% endif %}">
+            <div class="stat-icon"><i class="bi bi-calendar-x-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">%{{ dashboard.absence_rate }}</div>
+                <div class="stat-label">Devamsızlık Oranı</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="bi bi-trophy-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ dashboard.active_activities }}</div>
+                <div class="stat-label">Aktif Aktivite</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grafikler -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Ders Notlarım</h6>
+                <span class="badge bg-primary-subtle text-primary">{{ dashboard.total_courses }} ders</span>
+            </div>
+            <div class="card-body">
+                <canvas id="gradeChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="row g-3">
+            <!-- Devamsızlık kartı -->
+            <div class="col-12">
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-calendar-check-fill me-2 text-warning"></i>Devamsızlık Durumu</h6>
+                        {% if dashboard.absence_rate > 20 %}
+                        <span class="badge bg-danger">Kritik</span>
+                        {% elif dashboard.absence_rate > 10 %}
+                        <span class="badge bg-warning text-dark">Dikkat</span>
+                        {% else %}
+                        <span class="badge bg-success">İyi</span>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-3">
+                            <div style="position:relative;width:90px;height:90px;flex-shrink:0;">
+                                <canvas id="absenceChart" width="90" height="90"></canvas>
+                                <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+                                    <span class="fw-800" style="font-size:1.1rem;font-weight:800;color:{% if dashboard.absence_rate > 20 %}#ef4444{% elif dashboard.absence_rate > 10 %}#f59e0b{% else %}#10b981{% endif %};">%{{ dashboard.absence_rate }}</span>
+                                    <span style="font-size:.6rem;color:#94a3b8;">devamsız</span>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted fw-semibold">Devam Oranı</small>
+                                    <small class="fw-bold text-success">%{{ 100 - dashboard.absence_rate }}</small>
+                                </div>
+                                <div class="progress mb-2" style="height:6px;">
+                                    <div class="progress-bar bg-success" style="width:{{ 100 - dashboard.absence_rate }}%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <small class="text-muted fw-semibold">Devamsızlık</small>
+                                    <small class="fw-bold {% if dashboard.absence_rate > 20 %}text-danger{% elif dashboard.absence_rate > 10 %}text-warning{% else %}text-muted{% endif %}">%{{ dashboard.absence_rate }}</small>
+                                </div>
+                                <div class="progress" style="height:6px;">
+                                    <div class="progress-bar {% if dashboard.absence_rate > 20 %}bg-danger{% elif dashboard.absence_rate > 10 %}bg-warning{% else %}bg-secondary{% endif %}" style="width:{{ dashboard.absence_rate }}%"></div>
+                                </div>
+                                {% if dashboard.absence_rate > 20 %}
+                                <div class="mt-2 p-2 rounded" style="background:#fee2e2;font-size:.72rem;color:#991b1b;">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i>%20 sınırı aşıldı!
+                                </div>
+                                {% elif dashboard.absence_rate > 10 %}
+                                <div class="mt-2 p-2 rounded" style="background:#fef9c3;font-size:.72rem;color:#92400e;">
+                                    <i class="bi bi-exclamation-circle me-1"></i>Devamsızlık yüksek.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Radar kartı -->
+            <div class="col-12">
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h6><i class="bi bi-radar me-2 text-success"></i>Performans Profili</h6>
+                    </div>
+                    <div class="card-body d-flex align-items-center justify-content-center" style="padding:.75rem!important">
+                        <canvas id="radarChart" style="max-height:160px;max-width:100%;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Öneriler + Aktiviteler -->
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="bi bi-lightbulb-fill me-2 text-warning"></i>Sistem Önerileri</h6>
+                {% if nav_student_id %}
+                <a href="{{ url_for('analytics.get_recommendations', student_id=nav_student_id) }}" class="btn btn-xs btn-outline-primary" style="font-size:.75rem;padding:.2rem .6rem;">
+                    Tümü <i class="bi bi-arrow-right"></i>
+                </a>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if dashboard.recent_recommendations %}
+                    {% set recs = dashboard.recent_recommendations[0].recommendations if dashboard.recent_recommendations[0].recommendations is defined else dashboard.recent_recommendations %}
+                    {% for rec in recs[:4] %}
+                    <div class="rec-item rec-{{ rec.priority }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="rec-title">{{ rec.title }}</div>
+                            <span class="badge {% if rec.priority == 'high' %}bg-danger{% elif rec.priority == 'medium' %}bg-warning text-dark{% else %}bg-success{% endif %}" style="font-size:.65rem;">
+                                {{ rec.priority | upper }}
+                            </span>
+                        </div>
+                        <div class="rec-message">{{ rec.message }}</div>
+                        {% if rec.action %}<div class="rec-action"><i class="bi bi-arrow-right-circle me-1"></i>{{ rec.action }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state py-3">
+                        <i class="bi bi-lightbulb"></i>
+                        <p>Henüz öneri üretilmedi.<br>
+                        {% if nav_student_id %}<button class="btn btn-sm btn-primary mt-2" onclick="generateRecs('{{ nav_student_id }}')">Öneri Üret</button>{% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="bi bi-star-fill me-2 text-warning"></i>Aktivitelerim</h6>
+                <a href="{{ url_for('activities.student_activities') }}" class="btn btn-xs btn-outline-secondary" style="font-size:.75rem;padding:.2rem .6rem;">
+                    Tümü <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body">
+                {% if dashboard.activities %}
+                    {% for act in dashboard.activities[:4] %}
+                    <div class="d-flex align-items-center gap-2 py-2 border-bottom">
+                        <span class="activity-icon activity-{{ act.activity_type }}">
+                            {% if act.activity_type == 'sport' %}<i class="bi bi-bicycle"></i>
+                            {% elif act.activity_type == 'art' %}<i class="bi bi-palette"></i>
+                            {% elif act.activity_type == 'science' %}<i class="bi bi-lightbulb"></i>
+                            {% elif act.activity_type == 'club' %}<i class="bi bi-people-fill"></i>
+                            {% else %}<i class="bi bi-star"></i>{% endif %}
+                        </span>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold small text-truncate">{{ act.activity_name }}</div>
+                            <div class="text-muted" style="font-size:.72rem;">{{ act.role }} · {{ act.weekly_hours }}h/hafta</div>
+                        </div>
+                        {% if act.is_active %}
+                        <span class="badge bg-success-subtle text-success" style="font-size:.65rem;">Aktif</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state py-3">
+                        <i class="bi bi-activity"></i>
+                        <p>Kayıtlı aktivite yok.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const gradeData  = {{ dashboard.grade_details | tojson | safe }};
+const absRate    = {{ dashboard.absence_rate }};
+
+// ── Not bar chart ────────────────────────────────────────────
+(function() {
+    const ctx = document.getElementById('gradeChart').getContext('2d');
+    const colors = gradeData.map(g => g.weighted_average >= 70 ? '#10b981' : g.weighted_average >= 60 ? '#f59e0b' : '#ef4444');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: gradeData.map(g => g.course_name),
+            datasets: [{
+                label: 'Not',
+                data: gradeData.map(g => g.weighted_average || 0),
+                backgroundColor: colors.map(c => c + 'bb'),
+                borderColor: colors,
+                borderWidth: 1.5,
+                borderRadius: 8,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: ctx => {
+                            const d = gradeData[ctx.dataIndex];
+                            const proj = d.project_score != null ? ` | Proje: ${d.project_score}` : '';
+                            return `Vize: ${d.midterm_score || '-'} | Final: ${d.final_score || '-'}${proj}\nHarf: ${d.letter_grade || '-'} · ${d.is_passing ? '✓ Geçti' : '✗ Kaldı'}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' },
+                     ticks: { font: { family: 'Montserrat', size: 11 } } },
+                x: { grid: { display: false },
+                     ticks: { font: { family: 'Montserrat', size: 11 }, maxRotation: 30 } }
+            }
+        }
+    });
+})();
+
+// ── Devamsızlık doughnut ─────────────────────────────────────
+(function() {
+    const ctx = document.getElementById('absenceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Devam', 'Devamsız'],
+            datasets: [{
+                data: [100 - absRate, absRate],
+                backgroundColor: ['#10b981', absRate > 20 ? '#ef4444' : absRate > 10 ? '#f59e0b' : '#94a3b8'],
+                borderWidth: 0,
+                hoverOffset: 4
+            }]
+        },
+        options: {
+            cutout: '72%',
+            responsive: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+    });
+})();
+
+// ── Radar chart ──────────────────────────────────────────────
+(function() {
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    const scores = gradeData.map(g => g.weighted_average || 0);
+    const labels = gradeData.map(g => g.course_name.length > 10 ? g.course_name.substring(0,10)+'…' : g.course_name);
+
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Not',
+                data: scores,
+                backgroundColor: 'rgba(67,97,238,.15)',
+                borderColor: '#4361ee',
+                borderWidth: 2,
+                pointBackgroundColor: '#4361ee',
+                pointRadius: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                r: {
+                    beginAtZero: true, max: 100, min: 0,
+                    ticks: { stepSize: 25, font: { size: 9 } },
+                    pointLabels: { font: { family: 'Montserrat', size: 9 } },
+                    grid: { color: '#e2e8f0' }
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

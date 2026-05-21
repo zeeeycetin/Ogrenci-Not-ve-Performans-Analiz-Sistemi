@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Kayıt Ol{% endblock %}
+
+{% block auth_content %}
+<div class="reg-page">
+
+    <!-- ── Sol Panel ─────────────────────────────────────────── -->
+    <div class="reg-left d-none d-lg-flex">
+        <!-- Arka dekor -->
+        <div class="reg-blob reg-blob-1"></div>
+        <div class="reg-blob reg-blob-2"></div>
+        <div class="reg-blob reg-blob-3"></div>
+
+        <div class="reg-left-body">
+            <!-- Logo -->
+            <a href="{{ url_for('auth.login') }}" class="reg-logo">
+                <div class="reg-logo-icon"><i class="bi bi-mortarboard-fill"></i></div>
+                <span class="reg-logo-text">EduTrack</span>
+            </a>
+
+            <!-- Başlık -->
+            <div class="reg-hero">
+                <h1 class="reg-hero-title">Akademik başarıyı<br><span>birlikte takip edelim.</span></h1>
+                <p class="reg-hero-sub">Öğrenciler ve öğretmenler için tasarlanmış kapsamlı performans analiz platformu.</p>
+            </div>
+
+            <!-- Özellik kartları -->
+            <div class="reg-feat-list">
+                <div class="reg-feat">
+                    <div class="reg-feat-icon" style="background:rgba(99,102,241,.18);">
+                        <i class="bi bi-bar-chart-line-fill" style="color:#818cf8;"></i>
+                    </div>
+                    <div>
+                        <div class="reg-feat-title">Anlık Analiz</div>
+                        <div class="reg-feat-desc">Not ortalamalarını ve devamsızlıkları gerçek zamanlı izleyin</div>
+                    </div>
+                </div>
+                <div class="reg-feat">
+                    <div class="reg-feat-icon" style="background:rgba(16,185,129,.18);">
+                        <i class="bi bi-qr-code-scan" style="color:#34d399;"></i>
+                    </div>
+                    <div>
+                        <div class="reg-feat-title">QR Yoklama</div>
+                        <div class="reg-feat-desc">Öğrenciler QR kod okutarak yoklamaya katılır</div>
+                    </div>
+                </div>
+                <div class="reg-feat">
+                    <div class="reg-feat-icon" style="background:rgba(245,158,11,.18);">
+                        <i class="bi bi-envelope-fill" style="color:#fbbf24;"></i>
+                    </div>
+                    <div>
+                        <div class="reg-feat-title">Mesajlaşma</div>
+                        <div class="reg-feat-desc">Öğretmen–öğrenci arası anlık mesajlaşma</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- İstatistik -->
+            <div class="reg-stats">
+                <div class="reg-stat">
+                    <div class="reg-stat-val">500+</div>
+                    <div class="reg-stat-lbl">Kullanıcı</div>
+                </div>
+                <div class="reg-stat-divider"></div>
+                <div class="reg-stat">
+                    <div class="reg-stat-val">50+</div>
+                    <div class="reg-stat-lbl">Sınıf</div>
+                </div>
+                <div class="reg-stat-divider"></div>
+                <div class="reg-stat">
+                    <div class="reg-stat-val">%98</div>
+                    <div class="reg-stat-lbl">Memnuniyet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Sağ Panel ─────────────────────────────────────────── -->
+    <div class="reg-right">
+        <div class="reg-form-wrap">
+
+            <!-- Mobil logo -->
+            <div class="reg-mobile-logo d-flex d-lg-none align-items-center gap-2 mb-4">
+                <div class="reg-logo-icon" style="width:36px;height:36px;font-size:1rem;"><i class="bi bi-mortarboard-fill"></i></div>
+                <span style="font-weight:800;font-size:1.1rem;color:var(--text-primary);">EduTrack</span>
+            </div>
+
+            <div class="reg-form-header">
+                <h2>Hesap Oluştur</h2>
+                <p>Aşağıdaki formu doldurarak sisteme katılın</p>
+            </div>
+
+            {% if errors %}
+            <div class="alert alert-danger d-flex align-items-start gap-2 py-2 mb-3">
+                <i class="bi bi-exclamation-circle-fill flex-shrink-0 mt-1"></i>
+                <div>
+                    {% for field, msg in errors.items() %}
+                    <div class="small">{{ msg }}</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('auth.register') }}" novalidate id="regForm">
+
+                <!-- ── Adım 1: Rol Seçimi ── -->
+                <div class="reg-section-label">
+                    <span class="reg-step-badge">1</span>
+                    Rol Seçin
+                </div>
+
+                <div class="role-grid mb-4">
+                    <!-- Öğretmen -->
+                    <input type="radio" class="btn-check" name="role" id="roleTeacher" value="teacher" required>
+                    <label class="role-card" for="roleTeacher">
+                        <div class="role-card-icon" style="background:linear-gradient(135deg,#4361ee,#7c3aed);">
+                            <i class="bi bi-person-workspace"></i>
+                        </div>
+                        <div class="role-card-body">
+                            <div class="role-card-title">Öğretmen</div>
+                            <div class="role-card-desc">Not girişi, yoklama, sınıf analizi</div>
+                        </div>
+                        <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                    </label>
+
+                    <!-- Öğrenci -->
+                    <input type="radio" class="btn-check" name="role" id="roleStudent" value="student" required>
+                    <label class="role-card" for="roleStudent">
+                        <div class="role-card-icon" style="background:linear-gradient(135deg,#10b981,#059669);">
+                            <i class="bi bi-person-badge"></i>
+                        </div>
+                        <div class="role-card-body">
+                            <div class="role-card-title">Öğrenci</div>
+                            <div class="role-card-desc">Notlar, devamsızlık, öneri sistemi</div>
+                        </div>
+                        <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                    </label>
+
+                    <!-- Yönetici -->
+                    <input type="radio" class="btn-check" name="role" id="roleAdmin" value="admin" required>
+                    <label class="role-card" for="roleAdmin">
+                        <div class="role-card-icon" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
+                            <i class="bi bi-shield-fill-check"></i>
+                        </div>
+                        <div class="role-card-body">
+                            <div class="role-card-title">Yönetici</div>
+                            <div class="role-card-desc">Tam sistem erişimi ve yönetim</div>
+                        </div>
+                        <div class="role-card-check"><i class="bi bi-check-circle-fill"></i></div>
+                    </label>
+                </div>
+
+                <!-- ── Adım 2: Kişisel Bilgiler ── -->
+                <div class="reg-section-label">
+                    <span class="reg-step-badge">2</span>
+                    Kişisel Bilgiler
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12">
+                        <div class="reg-input-wrap">
+                            <span class="reg-input-icon"><i class="bi bi-person-fill"></i></span>
+                            <input type="text" name="full_name" class="reg-input" id="fullName"
+                                   placeholder="Ad Soyad" required autocomplete="name">
+                            <label class="reg-label" for="fullName">Ad Soyad</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="reg-input-wrap">
+                            <span class="reg-input-icon"><i class="bi bi-at"></i></span>
+                            <input type="text" name="username" class="reg-input" id="username"
+                                   placeholder="Kullanıcı Adı" required autocomplete="username">
+                            <label class="reg-label" for="username">Kullanıcı Adı</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="reg-input-wrap">
+                            <span class="reg-input-icon"><i class="bi bi-envelope-fill"></i></span>
+                            <input type="email" name="email" class="reg-input" id="email"
+                                   placeholder="E-posta" required autocomplete="email">
+                            <label class="reg-label" for="email">E-posta</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="reg-input-wrap">
+                            <span class="reg-input-icon"><i class="bi bi-lock-fill"></i></span>
+                            <input type="password" name="password" class="reg-input" id="regPassword"
+                                   placeholder="Şifre" required minlength="6" autocomplete="new-password"
+                                   style="padding-right:3rem;">
+                            <label class="reg-label" for="regPassword">Şifre</label>
+                            <button type="button" class="reg-eye-btn" onclick="togglePwd()" tabindex="-1">
+                                <i class="bi bi-eye" id="regEyeIcon"></i>
+                            </button>
+                        </div>
+                        <!-- Şifre gücü göstergesi -->
+                        <div class="pwd-strength mt-2" id="pwdStrength" style="display:none;">
+                            <div class="pwd-bars">
+                                <div class="pwd-bar" id="bar1"></div>
+                                <div class="pwd-bar" id="bar2"></div>
+                                <div class="pwd-bar" id="bar3"></div>
+                                <div class="pwd-bar" id="bar4"></div>
+                            </div>
+                            <span class="pwd-label" id="pwdLabel">Zayıf</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Öğrenci: Fakülte / Bölüm / Sınıf seçimi -->
+                <div id="studentClassField" class="mb-3" style="display:none;">
+                    <div class="reg-section-label">
+                        <span class="reg-step-badge">3</span>
+                        Akademik Bilgiler
+                    </div>
+
+                    <!-- Fakülte -->
+                    <div class="reg-input-wrap mb-2">
+                        <span class="reg-input-icon"><i class="bi bi-bank"></i></span>
+                        <select name="fakulte" id="fakulteSelect" class="reg-input" style="padding-left:2.8rem;"
+                                onchange="updateBolumler()">
+                            <option value="">-- Fakülte Seçin --</option>
+                            {% for fakulte in university_structure.keys() %}
+                            <option value="{{ fakulte }}">{{ fakulte }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Bölüm -->
+                    <div class="reg-input-wrap mb-2">
+                        <span class="reg-input-icon"><i class="bi bi-diagram-3"></i></span>
+                        <select name="department" id="bolumSelect" class="reg-input" style="padding-left:2.8rem;"
+                                onchange="updateSiniflar()">
+                            <option value="">-- Önce Fakülte Seçin --</option>
+                        </select>
+                    </div>
+
+                    <!-- Sınıf -->
+                    <div class="reg-input-wrap">
+                        <span class="reg-input-icon"><i class="bi bi-building"></i></span>
+                        <select name="class_name" id="classNameSelect" class="reg-input" style="padding-left:2.8rem;">
+                            <option value="">-- Önce Bölüm Seçin --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Gönder -->
+                <button type="submit" class="reg-submit-btn">
+                    <i class="bi bi-person-check-fill me-2"></i>Hesap Oluştur
+                    <span class="reg-submit-arrow"><i class="bi bi-arrow-right"></i></span>
+                </button>
+
+                <div class="text-center mt-4">
+                    <span class="text-muted small">Zaten hesabınız var mı?</span>
+                    <a href="{{ url_for('auth.login') }}" class="auth-link ms-1">Giriş Yap</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── Üniversite yapısı (Python'dan Jinja ile aktarılan veri) ── */
+const UNIVERSITY_STRUCTURE = {
+{% for fakulte, bolumler in university_structure.items() %}
+  "{{ fakulte }}": {
+    {% for bolum, meta in bolumler.items() %}
+    "{{ bolum }}": {{ meta['siniflar'] | tojson }},
+    {% endfor %}
+  },
+{% endfor %}
+};
+
+function updateBolumler() {
+    const fakulte = document.getElementById('fakulteSelect').value;
+    const bolumSel = document.getElementById('bolumSelect');
+    const sinifSel = document.getElementById('classNameSelect');
+    bolumSel.innerHTML = '<option value="">-- Bölüm Seçin --</option>';
+    sinifSel.innerHTML = '<option value="">-- Önce Bölüm Seçin --</option>';
+    if (!fakulte || !UNIVERSITY_STRUCTURE[fakulte]) return;
+    Object.keys(UNIVERSITY_STRUCTURE[fakulte]).forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b; opt.textContent = b;
+        bolumSel.appendChild(opt);
+    });
+}
+
+function updateSiniflar() {
+    const fakulte = document.getElementById('fakulteSelect').value;
+    const bolum   = document.getElementById('bolumSelect').value;
+    const sinifSel = document.getElementById('classNameSelect');
+    sinifSel.innerHTML = '<option value="">-- Sınıf Seçin --</option>';
+    if (!fakulte || !bolum) return;
+    const siniflar = UNIVERSITY_STRUCTURE[fakulte][bolum] || [];
+    siniflar.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s;
+        sinifSel.appendChild(opt);
+    });
+}
+
+/* Şifre göster/gizle */
+function togglePwd() {
+    const inp  = document.getElementById('regPassword');
+    const icon = document.getElementById('regEyeIcon');
+    inp.type   = inp.type === 'password' ? 'text' : 'password';
+    icon.className = inp.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+}
+
+/* Şifre gücü */
+document.getElementById('regPassword').addEventListener('input', function() {
+    const val = this.value;
+    const wrap = document.getElementById('pwdStrength');
+    if (!val) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'flex';
+
+    let score = 0;
+    if (val.length >= 6)  score++;
+    if (val.length >= 10) score++;
+    if (/[A-Z]/.test(val) && /[0-9]/.test(val)) score++;
+    if (/[^A-Za-z0-9]/.test(val)) score++;
+
+    const colors = ['#ef4444','#f59e0b','#3b82f6','#10b981'];
+    const labels = ['Zayıf','Orta','İyi','Güçlü'];
+    const bars   = ['bar1','bar2','bar3','bar4'];
+    bars.forEach((id, i) => {
+        const el = document.getElementById(id);
+        el.style.background = i < score ? colors[score - 1] : '#e2e8f0';
+    });
+    document.getElementById('pwdLabel').textContent = labels[score - 1] || 'Zayıf';
+    document.getElementById('pwdLabel').style.color = colors[score - 1] || '#ef4444';
+});
+
+/* Rol kartı renk vurgusu + sınıf alanı göster/gizle */
+document.querySelectorAll('.btn-check[name="role"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('.role-card').forEach(c => c.classList.remove('role-card--active'));
+        this.nextElementSibling.classList.add('role-card--active');
+        const classField = document.getElementById('studentClassField');
+        classField.style.display = this.value === 'student' ? '' : 'none';
+        document.getElementById('classNameSelect').required = this.value === 'student';
+    });
+});
+</script>
+{% endblock %}

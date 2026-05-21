@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Sınıf Analizi{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Banner ─────────────────────────────────────────── -->
+<div class="ov-hero mb-4">
+    <div class="ov-hero-deco"></div>
+    <div class="ov-hero-content">
+        <div class="ov-hero-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
+        <div>
+            <h4 class="mb-1">Sınıf Analizi</h4>
+            <p class="mb-0 opacity-75" style="font-size:.88rem;">
+                Öğrenci performanslarını izleyin, sınıf raporlarına ulaşın
+            </p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap ms-auto">
+            {% for cls in class_names %}
+            <a href="{{ url_for('analytics.class_analysis', class_name=cls) }}"
+               class="ov-hero-btn">
+                <i class="bi bi-graph-up me-1"></i>{{ cls }} Raporu
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ── Stat Kartları ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ students | length }}</div>
+                <div class="stat-label">Toplam Öğrenci</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ students | selectattr('performance_label', 'in', ['Üstün Başarılı', 'İyi']) | list | length }}</div>
+                <div class="stat-label">Başarılı</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-red">
+            <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ students | selectattr('performance_label', 'equalto', 'Kritik') | list | length }}</div>
+                <div class="stat-label">Kritik</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="bi bi-grid-1x2-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ class_names | length }}</div>
+                <div class="stat-label">Sınıf</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Sınıf + Arama Filtresi ─────────────────────────────── -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-sm btn-primary filter-btn" data-class="">
+                    <i class="bi bi-people me-1"></i>Tümü
+                    <span class="badge bg-white text-primary ms-1">{{ students | length }}</span>
+                </button>
+                {% for cls in class_names %}
+                <button class="btn btn-sm btn-outline-secondary filter-btn" data-class="{{ cls }}">{{ cls }}</button>
+                {% endfor %}
+            </div>
+            <div class="input-group input-group-sm ms-auto" style="max-width:240px;">
+                <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+                <input type="text" class="form-control border-start-0" id="searchInput"
+                       placeholder="Öğrenci ara…" oninput="filterStudents(this.value)">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Öğrenci Tablosu ────────────────────────────────────── -->
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0" id="studentsTable">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:44px;" class="ps-3">#</th>
+                    <th>Öğrenci</th>
+                    <th>No</th>
+                    <th>Sınıf</th>
+                    <th>Performans</th>
+                    <th style="min-width:120px;">Ortalama</th>
+                    <th class="text-center" style="width:90px;">İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for i, s in enumerate(students) %}
+                <tr data-class="{{ s.class_name }}">
+                    <td class="text-muted small ps-3">{{ i+1 }}</td>
+
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="sl-avatar
+                                {% if s.performance_label == 'Üstün Başarılı' %}sl-av-ustun
+                                {% elif s.performance_label == 'İyi' %}sl-av-iyi
+                                {% elif s.performance_label == 'Orta' %}sl-av-orta
+                                {% elif s.performance_label == 'Gelişim Gerekli' %}sl-av-gelisim
+                                {% elif s.performance_label == 'Kritik' %}sl-av-kritik
+                                {% else %}sl-av-default{% endif %}">
+                                {{ s.full_name[0] | upper }}
+                            </div>
+                            <div>
+                                <div class="fw-semibold" style="font-size:.875rem;">{{ s.full_name }}</div>
+                                {% if s.gender %}<div class="text-muted" style="font-size:.7rem;">{{ s.gender }}</div>{% endif %}
+                            </div>
+                        </div>
+                    </td>
+
+                    <td><code class="small text-muted">{{ s.student_number }}</code></td>
+                    <td><span class="badge bg-primary-subtle text-primary">{{ s.class_name }}</span></td>
+
+                    <td>
+                        {% if s.performance_label and s.performance_label != 'Belirsiz' %}
+                        <span class="badge
+                            {% if s.performance_label == 'Üstün Başarılı' %}perf-ustun
+                            {% elif s.performance_label == 'İyi' %}perf-iyi
+                            {% elif s.performance_label == 'Orta' %}perf-orta
+                            {% elif s.performance_label == 'Gelişim Gerekli' %}perf-gelisim
+                            {% else %}perf-kritik{% endif %}">
+                            {{ s.performance_label }}
+                        </span>
+                        {% else %}<span class="text-muted small">—</span>{% endif %}
+                    </td>
+
+                    <td>
+                        {% if s.overall_average %}
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-bold {% if s.overall_average >= 70 %}text-success{% elif s.overall_average >= 60 %}text-warning{% else %}text-danger{% endif %}"
+                                  style="min-width:36px;font-size:.9rem;">
+                                {{ "%.1f"|format(s.overall_average) }}
+                            </span>
+                            <div class="progress flex-grow-1" style="height:5px;max-width:70px;">
+                                <div class="progress-bar {% if s.overall_average >= 70 %}bg-success{% elif s.overall_average >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     style="width:{{ s.overall_average }}%"></div>
+                            </div>
+                        </div>
+                        {% else %}<span class="text-muted small">—</span>{% endif %}
+                    </td>
+
+                    <td class="text-center">
+                        <a href="{{ url_for('analytics.student_analysis', student_id=s.id) }}"
+                           class="sl-action-btn sl-btn-success" data-bs-toggle="tooltip" title="Analiz">
+                            <i class="bi bi-graph-up"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+
+                {% if not students %}
+                <tr>
+                    <td colspan="7" class="py-5 text-center">
+                        <div class="empty-state py-2">
+                            <i class="bi bi-people"></i>
+                            <p>Öğrenci bulunamadı.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterStudents(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#studentsTable tbody tr').forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            b.classList.remove('btn-primary');
+            b.classList.add('btn-outline-secondary');
+        });
+        this.classList.remove('btn-outline-secondary');
+        this.classList.add('btn-primary');
+
+        const cls = this.dataset.class;
+        document.querySelectorAll('#studentsTable tbody tr').forEach(r => {
+            r.style.display = (!cls || r.dataset.class === cls) ? '' : 'none';
+        });
+    });
+});
+
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

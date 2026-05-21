@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Sınıf Raporu — {{ analysis.class_name }}{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Banner ─────────────────────────────────────────── -->
+<div class="ca-hero mb-4">
+    <div class="ca-hero-deco"></div>
+    <div class="ca-hero-content">
+        <a href="{{ url_for('analytics.analytics_overview') }}" class="ca-back-btn">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <div class="ca-hero-icon"><i class="bi bi-people-fill"></i></div>
+        <div>
+            <h4 class="mb-1">{{ analysis.class_name }} — Sınıf Raporu</h4>
+            <p class="mb-0 opacity-75" style="font-size:.88rem;">
+                {{ analysis.student_count }} öğrenci · Detaylı performans analizi
+            </p>
+        </div>
+        {% if not analysis.error %}
+        <div class="d-flex gap-3 ms-auto flex-wrap align-items-center">
+            <div class="ca-hero-stat">
+                <div class="ca-hero-stat-val">{{ analysis.class_average }}</div>
+                <div class="ca-hero-stat-lbl">Sınıf Ort.</div>
+            </div>
+            <div class="ca-hero-stat">
+                <div class="ca-hero-stat-val" style="color:#ef4444;">{{ analysis.at_risk_students | length }}</div>
+                <div class="ca-hero-stat-lbl">Risk Altında</div>
+            </div>
+            <a href="{{ url_for('reports.class_report', class_name=analysis.class_name) }}"
+               class="btn btn-sm btn-light px-3" style="font-size:.78rem;border-radius:.5rem;" target="_blank">
+                <i class="bi bi-file-pdf-fill me-1 text-danger"></i>PDF Rapor
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if analysis.error %}
+<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>{{ analysis.error }}</div>
+{% else %}
+
+<!-- ── Stat Kartları ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-info text-center w-100">
+                <div class="stat-value">{{ analysis.class_average }}</div>
+                <div class="stat-label">Sınıf Ort.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="stat-card stat-card-cyan">
+            <div class="stat-info text-center w-100">
+                <div class="stat-value">{{ analysis.class_median }}</div>
+                <div class="stat-label">Medyan</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="stat-card stat-card-green">
+            <div class="stat-info text-center w-100">
+                <div class="stat-value">{{ analysis.highest_average }}</div>
+                <div class="stat-label">En Yüksek</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="stat-card stat-card-red">
+            <div class="stat-info text-center w-100">
+                <div class="stat-value">{{ analysis.lowest_average }}</div>
+                <div class="stat-label">En Düşük</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="stat-card stat-card-orange">
+            <div class="stat-info text-center w-100">
+                <div class="stat-value">{{ analysis.std_deviation }}</div>
+                <div class="stat-label">Std. Sapma</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="stat-card stat-card-purple">
+            <div class="stat-info text-center w-100">
+                <div class="stat-value">{{ analysis.at_risk_students | length }}</div>
+                <div class="stat-label">Risk Altında</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Grafik + Risk Tablosu ──────────────────────────────── -->
+<div class="row g-3">
+    <!-- Dağılım chart -->
+    <div class="col-lg-5">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Performans Dağılımı</h6>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center gap-3">
+                <canvas id="distChart" width="200" height="200" style="max-width:200px;"></canvas>
+                <div class="d-flex gap-3 flex-wrap justify-content-center" style="font-size:.75rem;">
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#10b981;margin-right:4px;"></span>90–100</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:4px;"></span>80–89</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:4px;"></span>70–79</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f97316;margin-right:4px;"></span>60–69</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ef4444;margin-right:4px;"></span>60 altı</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk altındaki öğrenciler -->
+    <div class="col-lg-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>Risk Altındaki Öğrenciler</h6>
+                <span class="badge {% if analysis.at_risk_students %}bg-danger{% else %}bg-success{% endif %}">
+                    {{ analysis.at_risk_students | length }} öğrenci
+                </span>
+            </div>
+            <div class="card-body p-0">
+                {% if analysis.at_risk_students %}
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Öğrenci</th>
+                            <th>No</th>
+                            <th class="text-center">Ortalama</th>
+                            <th class="text-center">Analiz</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in analysis.at_risk_students %}
+                        <tr>
+                            <td class="ps-3">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="sl-avatar sl-av-kritik" style="width:30px;height:30px;font-size:.72rem;">
+                                        {{ s.full_name[0] }}
+                                    </div>
+                                    <span class="fw-semibold small">{{ s.full_name }}</span>
+                                </div>
+                            </td>
+                            <td><code class="small text-muted">{{ s.student_number }}</code></td>
+                            <td class="text-center">
+                                <span class="fw-bold text-danger">{{ s.average }}</span>
+                                <div class="progress mt-1" style="height:3px;max-width:60px;margin:0 auto;">
+                                    <div class="progress-bar bg-danger" style="width:{{ s.average }}%"></div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <a href="{{ url_for('analytics.student_analysis', student_id=s.student_id) }}"
+                                   class="sl-action-btn sl-btn-primary" data-bs-toggle="tooltip" title="Analiz">
+                                    <i class="bi bi-graph-up"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state py-4">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size:2rem;opacity:.7;"></i>
+                    <p class="mt-2 mb-0 fw-semibold text-success">Tebrikler!</p>
+                    <p class="text-muted small">Risk altında öğrenci bulunmuyor.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Performans Dağılım Barı ────────────────────────────── -->
+{% if analysis.performance_distribution %}
+<div class="card mt-3">
+    <div class="card-header">
+        <h6><i class="bi bi-bar-chart-steps me-2 text-primary"></i>Performans Seviyesi Dağılımı</h6>
+    </div>
+    <div class="card-body">
+        <canvas id="perfChart" height="70"></canvas>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+{% if not analysis.error %}
+const highest = {{ analysis.highest_average }};
+const lowest  = {{ analysis.lowest_average }};
+const avg     = {{ analysis.class_average }};
+const total   = {{ analysis.student_count }};
+
+// Ortalamaya göre tahmini dağılım hesapla
+function estimateDist(avg, highest, lowest, total) {
+    if (total === 0) return [0,0,0,0,0];
+    const range = highest - lowest || 1;
+    const w = [
+        Math.max(0, (highest - 90) / range),
+        Math.max(0, (Math.min(highest,89) - Math.max(lowest,80)) / range),
+        Math.max(0, (Math.min(highest,79) - Math.max(lowest,70)) / range),
+        Math.max(0, (Math.min(highest,69) - Math.max(lowest,60)) / range),
+        Math.max(0, (Math.min(highest,59) - lowest) / range),
+    ];
+    const sum = w.reduce((a,b)=>a+b,0) || 1;
+    return w.map(v => Math.round(v/sum * total));
+}
+const dist = estimateDist(avg, highest, lowest, total);
+
+// Doughnut
+const ctx1 = document.getElementById('distChart').getContext('2d');
+new Chart(ctx1, {
+    type: 'doughnut',
+    data: {
+        labels: ['90-100', '80-89', '70-79', '60-69', '60 altı'],
+        datasets: [{
+            data: dist,
+            backgroundColor: ['#10b981','#22c55e','#f59e0b','#f97316','#ef4444'],
+            borderWidth: 2,
+            borderColor: '#fff',
+            hoverOffset: 8,
+        }]
+    },
+    options: {
+        responsive: false,
+        cutout: '62%',
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#1e293b',
+                bodyFont: { family: 'Montserrat', size: 11 },
+                callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed} öğrenci` }
+            }
+        }
+    }
+});
+
+{% if analysis.performance_distribution %}
+// Performans bar
+const perfDist = {{ analysis.performance_distribution | tojson | safe }};
+const perfCtx  = document.getElementById('perfChart').getContext('2d');
+const perfLabels = Object.keys(perfDist);
+const perfColors = perfLabels.map(l =>
+    l === 'Üstün Başarılı' ? '#10b981' :
+    l === 'İyi'            ? '#22c55e' :
+    l === 'Orta'           ? '#f59e0b' :
+    l === 'Gelişim Gerekli'? '#f97316' : '#ef4444'
+);
+new Chart(perfCtx, {
+    type: 'bar',
+    data: {
+        labels: perfLabels,
+        datasets: [{
+            data: Object.values(perfDist),
+            backgroundColor: perfColors.map(c => c + 'cc'),
+            borderColor: perfColors,
+            borderWidth: 1.5,
+            borderRadius: 8,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: 'Montserrat', size: 11 } }, grid: { color: '#f1f5f9' } },
+            x: { grid: { display: false }, ticks: { font: { family: 'Montserrat', size: 11 } } }
+        }
+    }
+});
+{% endif %}
+
+{% endif %}
+
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Öğretmen Yönetimi{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-person-workspace me-2 text-primary"></i>Öğretmen Yönetimi</h4>
+        <p class="text-muted mb-0">{{ teachers|length }} öğretmen kayıtlı</p>
+    </div>
+    <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-person-plus-fill me-1"></i>Yeni Öğretmen
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ad Soyad</th>
+                        <th>Öğretmen No</th>
+                        <th>Branş</th>
+                        <th>Atandığı Sınıflar</th>
+                        <th>Telefon</th>
+                        <th class="text-end">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in teachers %}
+                    <tr>
+                        <td class="fw-semibold">{{ t.name or t.full_name or '—' }}</td>
+                        <td class="text-muted small">{{ t.teacher_id or t.teacher_number or '—' }}</td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ t.department or t.branch or '—' }}</span></td>
+                        <td>
+                            {% if t.assigned_classes %}
+                                {% for c in t.assigned_classes %}
+                                <span class="badge bg-secondary-subtle text-secondary me-1">{{ c }}</span>
+                                {% endfor %}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-muted small">{{ t.phone or '—' }}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-1"
+                                data-bs-toggle="modal" data-bs-target="#editModal{{ loop.index }}"
+                                title="Düzenle"><i class="bi bi-pencil-fill"></i></button>
+                            <form method="POST"
+                                  action="{{ url_for('admin.delete_teacher', teacher_id=t.id) }}"
+                                  style="display:inline"
+                                  onsubmit="return confirm('Bu öğretmeni silmek istediğinize emin misiniz?')">
+                                <button class="btn btn-sm btn-outline-danger" title="Sil"><i class="bi bi-trash-fill"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+
+                    <!-- Edit Modal -->
+                    <div class="modal fade" id="editModal{{ loop.index }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h6 class="modal-title"><i class="bi bi-pencil-fill me-2 text-primary"></i>Öğretmen Düzenle — {{ t.name or t.full_name }}</h6>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('admin.edit_teacher', teacher_id=t.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label small fw-semibold">Ad Soyad</label>
+                                                <input type="text" name="full_name" value="{{ t.name or t.full_name }}" class="form-control form-control-sm" required>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small fw-semibold">Bölüm / Branş</label>
+                                                <input type="text" name="branch" value="{{ t.department or t.branch or '' }}" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small fw-semibold">Telefon</label>
+                                                <input type="text" name="phone" value="{{ t.phone or '' }}" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small fw-semibold">
+                                                    Atandığı Sınıflar
+                                                    <span class="text-muted fw-normal">(birden fazla seçilebilir)</span>
+                                                </label>
+                                                {% if class_names %}
+                                                <div class="border rounded p-2 d-flex flex-wrap gap-2">
+                                                    {% for cn in class_names %}
+                                                    <div class="form-check form-check-inline m-0">
+                                                        <input class="form-check-input" type="checkbox"
+                                                               name="direct_class_names" value="{{ cn }}"
+                                                               id="dcn_{{ t.id }}_{{ loop.index }}"
+                                                               {% if t.assigned_classes and cn in t.assigned_classes %}checked{% endif %}>
+                                                        <label class="form-check-label small" for="dcn_{{ t.id }}_{{ loop.index }}">{{ cn }}</label>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% else %}
+                                                <div class="text-muted small border rounded p-2">
+                                                    <i class="bi bi-info-circle me-1"></i>Sistemde henüz sınıf tanımlanmamış.
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small fw-semibold">
+                                                    Yönettiği Öğrenciler
+                                                    <span class="text-muted fw-normal">(birden fazla seçilebilir)</span>
+                                                </label>
+                                                {% if students %}
+                                                <div class="border rounded p-2" style="max-height:180px;overflow-y:auto;">
+                                                    {% for sclass, sgroup in students|groupby('class_name') %}
+                                                    <div class="mb-2">
+                                                        <div class="text-secondary fw-semibold small px-1 mb-1">
+                                                            <i class="bi bi-people me-1"></i>{{ sclass or 'Sınıfsız' }}
+                                                        </div>
+                                                        {% for s in sgroup %}
+                                                        <div class="form-check ms-3">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                   name="student_numbers" value="{{ s.student_number }}"
+                                                                   id="sn_{{ t.id }}_{{ s.id }}"
+                                                                   {% if t.assigned_students and s.student_number in t.assigned_students %}checked{% endif %}>
+                                                            <label class="form-check-label small" for="sn_{{ t.id }}_{{ s.id }}">
+                                                                <span class="text-muted me-1" style="font-size:.7rem;">{{ s.student_number }}</span>
+                                                                {{ s.full_name }}
+                                                            </label>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% else %}
+                                                <div class="text-muted small border rounded p-2">
+                                                    <i class="bi bi-info-circle me-1"></i>Sistemde henüz öğrenci tanımlanmamış.
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small fw-semibold">
+                                                    Verdiği Dersler
+                                                    <span class="text-muted fw-normal">(birden fazla seçilebilir)</span>
+                                                </label>
+                                                {% set t_courses = teacher_course_map.get(t.id, []) %}
+                                                {% if courses %}
+                                                <div class="border rounded p-2" style="max-height:220px;overflow-y:auto;">
+                                                    {% for class_name, course_group in courses|groupby('class_name') %}
+                                                    <div class="mb-2">
+                                                        <div class="text-primary fw-semibold small px-1 mb-1">
+                                                            <i class="bi bi-building me-1"></i>{{ class_name or 'Sınıfsız' }}
+                                                        </div>
+                                                        {% for c in course_group %}
+                                                        <div class="form-check ms-3">
+                                                            <input class="form-check-input" type="checkbox"
+                                                                   name="course_ids" value="{{ c.id }}"
+                                                                   id="tc_{{ t.id }}_{{ c.id }}"
+                                                                   {% if c.id in t_courses %}checked{% endif %}>
+                                                            <label class="form-check-label small" for="tc_{{ t.id }}_{{ c.id }}">
+                                                                <span class="badge bg-secondary me-1" style="font-size:.68rem;">{{ c.course_code }}</span>
+                                                                {{ c.course_name }}
+                                                            </label>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% else %}
+                                                <div class="text-muted small border rounded p-2">
+                                                    <i class="bi bi-info-circle me-1"></i>Sistemde henüz ders tanımlanmamış.
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-check-lg me-1"></i>Kaydet
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Öğretmen bulunamadı.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

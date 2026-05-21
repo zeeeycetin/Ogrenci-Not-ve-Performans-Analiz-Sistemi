@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Aktivitelerim{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Banner ─────────────────────────────────────────── -->
+<div class="act-hero mb-4">
+    <div class="act-hero-deco"></div>
+    <div class="act-hero-content">
+        <div class="act-hero-icon"><i class="bi bi-activity"></i></div>
+        <div>
+            <h4 class="mb-1">Aktivitelerim</h4>
+            <p class="mb-0 opacity-75" style="font-size:.88rem;">Katıldığınız kulüpler ve kişisel aktiviteler</p>
+        </div>
+        {% if activities %}
+        <div class="d-flex gap-3 ms-auto flex-wrap">
+            <div class="act-hero-stat">
+                <div class="act-hero-stat-val">{{ active_count }}</div>
+                <div class="act-hero-stat-lbl">Aktif</div>
+            </div>
+            <div class="act-hero-stat">
+                <div class="act-hero-stat-val">{{ total_hours }}s</div>
+                <div class="act-hero-stat-lbl">Haftalık</div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Stat Kartları ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-collection-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ activities | length }}</div>
+                <div class="stat-label">Toplam Aktivite</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ active_count }}</div>
+                <div class="stat-label">Aktif Aktivite</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-4">
+        <div class="stat-card stat-card-purple">
+            <div class="stat-icon"><i class="bi bi-clock-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ total_hours }}<small style="font-size:.6em;font-weight:500;">s</small></div>
+                <div class="stat-label">Haftalık Saat</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if activities %}
+
+<!-- ── Grafikler ──────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Aktivite Türleri</h6>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <canvas id="typeChart" width="200" height="200" style="max-width:200px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Haftalık Saat Dağılımı</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="hoursChart" height="110"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Aktivite Kartları ──────────────────────────────────── -->
+<div class="row g-3">
+    {% for act in activities %}
+    <div class="col-md-6">
+        <div class="act-item-card">
+            <div class="act-item-top">
+                <!-- İkon -->
+                <div class="act-item-icon act-type-{{ act.activity_type }}">
+                    {% if act.activity_type == 'sport' %}<i class="bi bi-bicycle"></i>
+                    {% elif act.activity_type == 'art' %}<i class="bi bi-palette-fill"></i>
+                    {% elif act.activity_type == 'science' %}<i class="bi bi-lightbulb-fill"></i>
+                    {% elif act.activity_type == 'club' %}<i class="bi bi-people-fill"></i>
+                    {% else %}<i class="bi bi-star-fill"></i>{% endif %}
+                </div>
+
+                <!-- Başlık -->
+                <div class="flex-grow-1 min-w-0">
+                    <div class="fw-bold" style="font-size:.9rem;">{{ act.activity_name }}</div>
+                    <div class="text-muted" style="font-size:.75rem;">{{ act.role }} · {{ act.activity_type | title }}</div>
+                </div>
+
+                <!-- Durum badge -->
+                <span class="badge {% if act.is_active %}bg-success-subtle text-success{% else %}bg-secondary bg-opacity-10 text-secondary{% endif %}"
+                      style="font-size:.7rem;flex-shrink:0;">
+                    {% if act.is_active %}Aktif{% else %}Pasif{% endif %}
+                </span>
+            </div>
+
+            <!-- İstatistik satırı -->
+            <div class="act-item-stats">
+                <div class="act-stat-box" style="background:#eff6ff;">
+                    <div class="act-stat-val text-primary">{{ act.weekly_hours }}</div>
+                    <div class="act-stat-lbl">Saat/Hafta</div>
+                </div>
+                {% if act.start_date %}
+                <div class="act-stat-box" style="background:#f0fdf4;">
+                    <div class="act-stat-val text-success" style="font-size:.8rem;">
+                        {{ act.start_date | fmt_date }}
+                    </div>
+                    <div class="act-stat-lbl">Başlangıç</div>
+                </div>
+                {% endif %}
+                <div class="act-stat-box" style="background:#f5f3ff;">
+                    <div class="act-stat-val" style="color:#7c3aed;font-size:.85rem;">
+                        {{ act.activity_type | title }}
+                    </div>
+                    <div class="act-stat-lbl">Tür</div>
+                </div>
+            </div>
+
+            {% if act.notes %}
+            <div class="act-item-notes">
+                <i class="bi bi-chat-left-text me-1"></i>{{ act.notes }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state py-5">
+            <i class="bi bi-activity" style="font-size:3rem;opacity:.3;"></i>
+            <p class="mt-3 mb-1 fw-semibold">Kayıtlı aktivite bulunmuyor</p>
+            <p class="text-muted small">Kulüp ve aktivite bilgileriniz burada görünecek.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if activities %}
+<script>
+const activities = {{ activities | tojson | safe }};
+const typeCounts = {{ type_counts | tojson | safe }};
+const typeLabels = { club: 'Kulüp', sport: 'Spor', art: 'Sanat', science: 'Bilim', other: 'Diğer' };
+const typeColors = { club: '#4361ee', sport: '#10b981', art: '#f59e0b', science: '#8b5cf6', other: '#64748b' };
+const colors = ['#4361ee','#10b981','#f59e0b','#8b5cf6','#64748b'];
+
+// Doughnut
+(function() {
+    const ctx = document.getElementById('typeChart').getContext('2d');
+    const labels = Object.keys(typeCounts);
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels.map(l => typeLabels[l] || l),
+            datasets: [{
+                data: Object.values(typeCounts),
+                backgroundColor: labels.map((l,i) => typeColors[l] || colors[i]),
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: false,
+            cutout: '60%',
+            plugins: {
+                legend: { position: 'bottom', labels: { font: { family: 'Montserrat', size: 11 }, boxWidth: 12, padding: 12 } },
+                tooltip: { backgroundColor: '#1e293b', bodyFont: { family: 'Montserrat', size: 11 } }
+            }
+        }
+    });
+})();
+
+// Bar chart
+(function() {
+    const ctx    = document.getElementById('hoursChart').getContext('2d');
+    const active = activities.filter(a => a.is_active);
+    const barColors = active.map(a => typeColors[a.activity_type] || '#4361ee');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: active.map(a => a.activity_name),
+            datasets: [{
+                label: 'Haftalık Saat',
+                data: active.map(a => a.weekly_hours),
+                backgroundColor: barColors.map(c => c + '99'),
+                borderColor: barColors,
+                borderWidth: 1.5,
+                borderRadius: 10,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    bodyFont: { family: 'Montserrat', size: 11 },
+                    callbacks: { label: ctx => ` ${ctx.parsed.y} saat/hafta` }
+                }
+            },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { family: 'Montserrat', size: 11 }, stepSize: 1 } },
+                x: { grid: { display: false }, ticks: { font: { family: 'Montserrat', size: 11 } } }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

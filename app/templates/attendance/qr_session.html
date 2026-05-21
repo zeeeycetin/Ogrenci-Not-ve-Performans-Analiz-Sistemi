@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+{% block title %}QR Yoklama Oturumu{% endblock %}
+
+{% block extra_css %}
+<style>
+.qr-session-wrap { display:flex; gap:1.5rem; align-items:flex-start; }
+.qr-panel { flex:0 0 340px; }
+.list-panel { flex:1; min-width:0; }
+.qr-img-box {
+    background:#fff;
+    border-radius:1rem;
+    padding:1.25rem;
+    box-shadow:0 4px 24px rgba(0,0,0,.08);
+    text-align:center;
+}
+.qr-img-box img { width:100%; max-width:280px; border-radius:.5rem; }
+.counter-ring {
+    width:90px; height:90px; border-radius:50%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    font-weight:700; font-size:1.6rem; line-height:1;
+    background:linear-gradient(135deg,#6d28d9,#7c3aed);
+    color:#fff; box-shadow:0 4px 16px rgba(109,40,217,.3);
+}
+.counter-ring small { font-size:.65rem; font-weight:400; opacity:.85; margin-top:.15rem; }
+.pulse-dot {
+    display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:#10b981; margin-right:.35rem;
+    animation:pulse 1.4s infinite;
+}
+@keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:.4;transform:scale(.7)}
+}
+.student-chip {
+    display:flex; align-items:center; gap:.6rem;
+    padding:.5rem .75rem; border-radius:.6rem;
+    background:#f0fdf4; border:1px solid #bbf7d0;
+    font-size:.85rem; animation:fadeIn .3s ease;
+}
+.student-chip .chip-av {
+    width:28px; height:28px; border-radius:50%;
+    background:#10b981; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:.75rem; font-weight:700; flex-shrink:0;
+}
+.waiting-chip {
+    background:#f8fafc; border:1px solid #e2e8f0; color:#94a3b8;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+#progressBar { transition:width .5s ease; }
+@media(max-width:768px) {
+    .qr-session-wrap { flex-direction:column; }
+    .qr-panel { flex:unset; width:100%; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-qr-code-scan me-2" style="color:#7c3aed;"></i>QR Yoklama Oturumu</h4>
+        <p class="text-muted mb-0">
+            <strong>{{ course.course_name }}</strong> — {{ course.class_name }} —
+            {{ date_str }} — {{ period }}. Ders
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('attendance.generate_qr', course_id=course.id, date=date_str, period=period) }}"
+           download="qr_yoklama.png" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-1"></i>QR İndir
+        </a>
+        <a href="{{ url_for('attendance.record_form', course_id=course.id, date=date_str, period=period) }}"
+           class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-clipboard2-check me-1"></i>Manuel Yoklama
+        </a>
+    </div>
+</div>
+
+<div class="qr-session-wrap">
+
+    <!-- Sol: QR + Sayaç -->
+    <div class="qr-panel">
+        <div class="qr-img-box mb-3">
+            <p class="text-muted small mb-2">Öğrenciler bu kodu kameralarıyla okutarak derse katılır</p>
+            <img src="{{ url_for('attendance.generate_qr', course_id=course.id, date=date_str, period=period) }}"
+                 alt="QR Kod" id="qrImg">
+        </div>
+
+        <!-- İlerleme -->
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <div class="counter-ring">
+                        <span id="presentCount">0</span>
+                        <small>/ <span id="totalCount">{{ students|length }}</span></small>
+                    </div>
+                    <div>
+                        <div class="fw-bold">Katılan Öğrenci</div>
+                        <div class="text-muted small">
+                            <span class="pulse-dot"></span>
+                            <span id="liveLabel">Canlı takip ediliyor</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="progress" style="height:8px;border-radius:999px;background:#ede9fe;">
+                    <div id="progressBar" class="progress-bar"
+                         style="width:0%;background:linear-gradient(90deg,#6d28d9,#8b5cf6);border-radius:999px;"></div>
+                </div>
+                <div class="text-muted small text-end mt-1">
+                    <span id="pct">0</span>% katılım
+                </div>
+            </div>
+        </div>
+
+        <!-- Oturum bilgisi -->
+        <div class="card">
+            <div class="card-body py-2 px-3" style="font-size:.82rem;">
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Ders</span>
+                    <span class="fw-semibold">{{ course.course_name }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Sınıf</span>
+                    <span>{{ course.class_name }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Tarih</span>
+                    <span>{{ date_str }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-1">
+                    <span class="text-muted">Ders Saati</span>
+                    <span>{{ period }}. Ders</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">Toplam Öğrenci</span>
+                    <span class="badge bg-primary-subtle text-primary">{{ students|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sağ: Katılım listesi -->
+    <div class="list-panel">
+        <div class="card h-100">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h6 class="mb-0 fw-bold">
+                    <i class="bi bi-people-fill me-1 text-success"></i>Katılım Durumu
+                </h6>
+                <span class="text-muted small">Her 5 saniyede güncellenir</span>
+            </div>
+            <div class="card-body p-3" id="studentListWrap" style="max-height:600px;overflow-y:auto;">
+                <!-- JS tarafından doldurulur -->
+                <div class="text-center text-muted py-4" id="loadingState">
+                    <div class="spinner-border spinner-border-sm mb-2"></div>
+                    <div class="small">Yükleniyor…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const STATUS_URL = "{{ url_for('attendance.qr_session_status', course_id=course.id, date=date_str, period=period) }}";
+const ALL_STUDENTS = {{ students | tojson | safe }};
+
+function renderList(joined) {
+    const wrap = document.getElementById('studentListWrap');
+    const joinedNums = new Set(joined.map(j => j.number));
+
+    let html = '<div class="d-flex flex-column gap-2">';
+
+    // Katılanlar
+    joined.forEach(s => {
+        html += `
+        <div class="student-chip">
+            <div class="chip-av">${s.name[0]}</div>
+            <div style="flex:1;min-width:0;">
+                <div class="fw-semibold text-truncate">${s.name}</div>
+                <div class="text-muted" style="font-size:.72rem;">${s.number}</div>
+            </div>
+            <span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Katıldı</span>
+        </div>`;
+    });
+
+    // Bekleyenler
+    ALL_STUDENTS.forEach(s => {
+        if (!joinedNums.has(s.student_number)) {
+            html += `
+            <div class="student-chip waiting-chip">
+                <div class="chip-av" style="background:#cbd5e1;">${s.full_name[0]}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="fw-semibold text-truncate text-secondary">${s.full_name}</div>
+                    <div style="font-size:.72rem;">${s.student_number || '—'}</div>
+                </div>
+                <span class="badge bg-secondary-subtle text-secondary">Bekleniyor</span>
+            </div>`;
+        }
+    });
+
+    html += '</div>';
+    wrap.innerHTML = html;
+}
+
+async function poll() {
+    try {
+        const res  = await fetch(STATUS_URL);
+        const data = await res.json();
+        const pct  = data.total ? Math.round(data.present / data.total * 100) : 0;
+
+        document.getElementById('presentCount').textContent = data.present;
+        document.getElementById('totalCount').textContent   = data.total;
+        document.getElementById('progressBar').style.width  = pct + '%';
+        document.getElementById('pct').textContent          = pct;
+
+        renderList(data.joined || []);
+    } catch (e) {
+        document.getElementById('liveLabel').textContent = 'Bağlantı hatası';
+    }
+}
+
+poll();
+setInterval(poll, 5000);
+</script>
+{% endblock %}

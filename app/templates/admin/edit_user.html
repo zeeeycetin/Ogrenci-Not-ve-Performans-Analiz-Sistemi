@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Kullanıcı Düzenle{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-person-gear me-2 text-primary"></i>Kullanıcı Düzenle</h4>
+        <p class="text-muted mb-0">{{ u.full_name }}</p>
+    </div>
+    <a href="{{ url_for('admin.user_list') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Geri
+    </a>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-person-fill me-2 text-primary"></i>Hesap Bilgileri</h6>
+            </div>
+            <form method="POST" action="{{ url_for('admin.edit_user', user_id=u.id) }}">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Ad Soyad</label>
+                        <input type="text" name="full_name" value="{{ u.full_name }}" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Kullanıcı Adı</label>
+                        <input type="text" value="{{ u.username }}" class="form-control" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">E-posta</label>
+                        <input type="email" value="{{ u.email }}" class="form-control" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rol</label>
+                        <select name="role" class="form-select">
+                            <option value="student" {% if u.role == 'student' %}selected{% endif %}>Öğrenci</option>
+                            <option value="teacher" {% if u.role == 'teacher' %}selected{% endif %}>Öğretmen</option>
+                            <option value="admin" {% if u.role == 'admin' %}selected{% endif %}>Yönetici</option>
+                        </select>
+                    </div>
+
+                    {% if u.role == 'teacher' and profile %}
+                    <hr>
+                    <p class="small text-muted fw-semibold">Öğretmen Profili</p>
+                    <div class="mb-3">
+                        <label class="form-label">Branş</label>
+                        <input type="text" name="branch" value="{{ profile.branch or '' }}" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Verdiği Dersler
+                            <span class="text-muted fw-normal small">(birden fazla seçilebilir)</span>
+                        </label>
+                        {% if all_courses %}
+                        <div class="border rounded p-2" style="max-height:240px;overflow-y:auto;">
+                            {% for class_name, course_group in all_courses|groupby('class_name') %}
+                            <div class="mb-2">
+                                <div class="text-primary fw-semibold small px-1 mb-1">
+                                    <i class="bi bi-building me-1"></i>{{ class_name or 'Sınıfsız' }}
+                                </div>
+                                {% for c in course_group %}
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input" type="checkbox" name="course_ids"
+                                           value="{{ c.id }}" id="ec_{{ c.id }}"
+                                           {% if c.id in teacher_course_ids %}checked{% endif %}>
+                                    <label class="form-check-label small" for="ec_{{ c.id }}">
+                                        <span class="badge bg-secondary me-1" style="font-size:.68rem;">{{ c.course_code }}</span>
+                                        {{ c.course_name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="text-muted small border rounded p-2">
+                            <i class="bi bi-info-circle me-1"></i>Sistemde henüz ders tanımlanmamış.
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% elif u.role == 'student' and profile %}
+                    <hr>
+                    <p class="small text-muted fw-semibold">Öğrenci Profili</p>
+                    <div class="mb-3">
+                        <label class="form-label">Sınıf</label>
+                        <select name="class_name" class="form-select">
+                            <option value="">-- Sınıf Seçin --</option>
+                            {% for cn in class_names %}
+                            <option value="{{ cn }}" {% if profile.class_name == cn %}selected{% endif %}>{{ cn }}</option>
+                            {% else %}
+                            <option disabled>Sistemde sınıf tanımlanmamış</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Cinsiyet</label>
+                        <select name="gender" class="form-select">
+                            <option value="">Seçiniz</option>
+                            <option value="Erkek" {% if profile.gender == 'Erkek' %}selected{% endif %}>Erkek</option>
+                            <option value="Kadın" {% if profile.gender in ['Kadın','Kız'] %}selected{% endif %}>Kadın</option>
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer d-flex justify-content-end gap-2">
+                    <a href="{{ url_for('admin.user_list') }}" class="btn btn-outline-secondary btn-sm">İptal</a>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-check-lg me-1"></i>Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2 text-primary"></i>Hesap Durumu</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <span>Onay Durumu</span>
+                    <span class="badge {% if u.is_approved %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                        {{ 'Onaylı' if u.is_approved else 'Onay Bekliyor' }}
+                    </span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <span>Hesap Durumu</span>
+                    <span class="badge {% if u.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                        {{ 'Aktif' if u.is_active else 'Pasif' }}
+                    </span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between mb-4">
+                    <span>Kayıt Tarihi</span>
+                    <span class="text-muted small">{{ u.created_at | fmt_date }}</span>
+                </div>
+
+                <div class="d-grid gap-2">
+                    {% if not u.is_approved %}
+                    <form method="POST" action="{{ url_for('admin.approve_user', user_id=u.id) }}">
+                        <button class="btn btn-sm btn-success w-100">
+                            <i class="bi bi-check-circle-fill me-1"></i>Onayla
+                        </button>
+                    </form>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('admin.toggle_user', user_id=u.id) }}">
+                        <button class="btn btn-sm btn-outline-warning w-100">
+                            <i class="bi bi-toggle-on me-1"></i>{{ 'Pasif Et' if u.is_active else 'Aktif Et' }}
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ url_for('admin.delete_user', user_id=u.id) }}"
+                          onsubmit="return confirm('Bu kullanıcıyı kalıcı olarak silmek istediğinize emin misiniz?')">
+                        <button class="btn btn-sm btn-outline-danger w-100">
+                            <i class="bi bi-trash-fill me-1"></i>Sil
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

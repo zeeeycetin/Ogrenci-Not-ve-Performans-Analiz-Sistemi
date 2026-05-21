@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Öğrenci Yönetimi{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-person-badge-fill me-2 text-primary"></i>Öğrenci Yönetimi</h4>
+        <p class="text-muted mb-0">{{ students|length }} öğrenci kayıtlı</p>
+    </div>
+    <a href="{{ url_for('admin.create_user') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-person-plus-fill me-1"></i>Yeni Öğrenci
+    </a>
+</div>
+
+<!-- Filtre -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <form class="row g-2 align-items-end" method="GET">
+            <div class="col-auto">
+                <label class="form-label small mb-1">Sınıf</label>
+                <select name="class_name" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Tüm Sınıflar</option>
+                    {% for c in classes %}
+                    <option value="{{ c }}" {% if c == class_filter %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="bi bi-funnel"></i> Filtrele</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tablo -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ad Soyad</th>
+                        <th>Öğrenci No</th>
+                        <th>Sınıf</th>
+                        <th>Cinsiyet</th>
+                        <th>Telefon</th>
+                        <th class="text-end">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in students %}
+                    <tr>
+                        <td class="fw-semibold">{{ s.full_name }}</td>
+                        <td class="text-muted small">{{ s.student_number or '—' }}</td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ s.class_name or '—' }}</span></td>
+                        <td>{{ s.gender or '—' }}</td>
+                        <td class="text-muted small">{{ s.phone or '—' }}</td>
+                        <td class="text-muted small">{{ s.parent_phone or '—' }}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary me-1"
+                                data-bs-toggle="modal" data-bs-target="#editModal{{ loop.index }}"
+                                title="Düzenle"><i class="bi bi-pencil-fill"></i></button>
+                            <form method="POST"
+                                  action="{{ url_for('admin.delete_student', student_id=s.id) }}"
+                                  style="display:inline"
+                                  onsubmit="return confirm('Bu öğrenciyi silmek istediğinize emin misiniz?')">
+                                <button class="btn btn-sm btn-outline-danger" title="Sil"><i class="bi bi-trash-fill"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+
+                    <!-- Edit Modal -->
+                    <div class="modal fade" id="editModal{{ loop.index }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h6 class="modal-title"><i class="bi bi-pencil-fill me-2 text-primary"></i>Öğrenci Düzenle</h6>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('admin.edit_student', student_id=s.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row g-3">
+                                            <div class="col-12">
+                                                <label class="form-label small">Ad Soyad</label>
+                                                <input type="text" name="full_name" value="{{ s.full_name }}" class="form-control form-control-sm" required>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">Öğrenci No</label>
+                                                <input type="text" name="student_number" value="{{ s.student_number or '' }}" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">Sınıf</label>
+                                                <select name="class_name" class="form-select form-select-sm">
+                                                    <option value="">-- Seçin --</option>
+                                                    {% for cn in class_names %}
+                                                    <option value="{{ cn }}" {% if s.class_name == cn %}selected{% endif %}>{{ cn }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">Cinsiyet</label>
+                                                <select name="gender" class="form-select form-select-sm">
+                                                    <option value="">Seçiniz</option>
+                                                    <option value="Erkek" {% if s.gender == 'Erkek' %}selected{% endif %}>Erkek</option>
+                                                    <option value="Kadın" {% if s.gender in ['Kadın','Kız'] %}selected{% endif %}>Kadın</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label small">Telefon</label>
+                                                <input type="text" name="phone" value="{{ s.phone or '' }}" class="form-control form-control-sm">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label small">Veli Telefonu</label>
+                                                <input type="text" name="parent_phone" value="{{ s.parent_phone or '' }}" class="form-control form-control-sm">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">İptal</button>
+                                        <button type="submit" class="btn btn-sm btn-primary">Kaydet</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center text-muted py-4">Öğrenci bulunamadı.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Kulüpler{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-people-fill me-2 text-primary"></i>Kulüpler</h4>
+        <p class="text-muted mb-0">Okul kulüpleri ve etkinlikleri</p>
+    </div>
+    {% if user.role == 'teacher' or user.role == 'admin' %}
+    <a href="{{ url_for('clubs.create_club') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle-fill me-1"></i>Kulüp Oluştur
+    </a>
+    {% endif %}
+</div>
+
+{% if clubs %}
+<div class="row g-3">
+    {% for club in clubs %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card h-100" style="border-top:4px solid {% if club.category == 'spor' %}#10b981{% elif club.category == 'sanat' %}#f59e0b{% elif club.category == 'bilim' %}#8b5cf6{% else %}#4361ee{% endif %};">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-2">
+                    <h6 class="fw-bold mb-0">{{ club.name }}</h6>
+                    <span class="badge bg-primary-subtle text-primary" style="font-size:.65rem;">{{ club.category | title }}</span>
+                </div>
+                {% if club.description %}
+                <p class="text-muted small mb-3">{{ club.description[:100] }}{% if club.description | length > 100 %}…{% endif %}</p>
+                {% endif %}
+
+                <div class="d-flex flex-wrap gap-2 mb-3 small text-muted">
+                    {% if club.meeting_day %}
+                    <span><i class="bi bi-calendar3 me-1"></i>{{ club.meeting_day }}</span>
+                    {% endif %}
+                    {% if club.meeting_time %}
+                    <span><i class="bi bi-clock me-1"></i>{{ club.meeting_time }}</span>
+                    {% endif %}
+                    <span><i class="bi bi-people me-1"></i>{{ club.member_ids | length if club.member_ids else 0 }}/{{ club.max_members }}</span>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('clubs.club_detail', club_id=club.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1">
+                        <i class="bi bi-eye me-1"></i>Detay
+                    </a>
+                    {% if user.role == 'student' %}
+                        {% if club.id in member_ids %}
+                        <span class="btn btn-sm btn-success disabled">
+                            <i class="bi bi-check-circle me-1"></i>Üyesin
+                        </span>
+                        {% else %}
+                        <form method="POST" action="{{ url_for('clubs.join_club', club_id=club.id) }}" class="d-inline">
+                            <button class="btn btn-sm btn-primary">
+                                <i class="bi bi-person-plus me-1"></i>Katıl
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state py-5">
+            <i class="bi bi-people" style="font-size:3rem;opacity:.3;"></i>
+            <p class="mt-3 mb-1 fw-semibold">Henüz kulüp oluşturulmamış</p>
+            {% if user.role == 'teacher' %}
+            <a href="{{ url_for('clubs.create_club') }}" class="btn btn-primary btn-sm mt-2">
+                <i class="bi bi-plus-circle me-1"></i>İlk Kulübü Oluştur
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

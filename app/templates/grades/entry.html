@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+{% block title %}Not Girişi{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-pencil-square me-2 text-primary"></i>Not Girişi</h4>
+        <p class="text-muted mb-0">Ders seçerek öğrenci notlarını girin veya güncelleyin</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if selected_course %}
+        <button class="btn btn-primary" onclick="saveAll()" id="saveAllBtn">
+            <i class="bi bi-floppy-fill me-2"></i>Tümünü Kaydet
+        </button>
+        {% endif %}
+        <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#csvModal">
+            <i class="bi bi-filetype-csv me-2"></i>CSV Yükle
+        </button>
+    </div>
+</div>
+
+<!-- CSV Yükleme Modal -->
+<div class="modal fade" id="csvModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <div class="d-flex align-items-center gap-2">
+                    <div style="width:40px;height:40px;border-radius:.625rem;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1.1rem;">
+                        <i class="bi bi-filetype-csv"></i>
+                    </div>
+                    <div>
+                        <h5 class="modal-title mb-0">Toplu Not Yükle</h5>
+                        <small class="text-muted">CSV formatında not yükleyin</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info py-2 mb-3" style="font-size:.8rem;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>CSV Format:</strong> <code>ogrenci_no, ders_kodu, vize, proje, final</code><br>
+                    <span class="text-muted">Proje sütunu opsiyoneldir. İlk satır başlık olmalıdır.</span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">CSV Dosyası <span class="text-danger">*</span></label>
+                    <input type="file" class="form-control" id="csvFileInput" accept=".csv">
+                </div>
+                <div id="csvResult" class="d-none"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Kapat</button>
+                <button type="button" class="btn btn-success px-4" onclick="uploadCSV()" id="csvUploadBtn">
+                    <i class="bi bi-cloud-upload-fill me-2"></i>Yükle
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Ders Seçimi -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h6><i class="bi bi-book-fill me-2 text-primary"></i>Ders Seçin</h6>
+        <small class="text-muted">{{ courses | length }} ders atanmış</small>
+    </div>
+    <div class="card-body">
+        {% if courses %}
+        <div class="row g-3">
+            {% for course in courses %}
+            <div class="col-6 col-md-4 col-xl-3">
+                <a href="?course_id={{ course._id }}" class="text-decoration-none">
+                    <div class="grade-course-card {% if selected_course and selected_course._id == course._id %}selected{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="grade-course-icon">
+                                <i class="bi bi-journal-text"></i>
+                            </div>
+                            {% if course.has_project %}
+                            <span class="badge" style="background:#fef9c3;color:#92400e;font-size:.65rem;">Projeli</span>
+                            {% else %}
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size:.65rem;">Standart</span>
+                            {% endif %}
+                        </div>
+                        <div class="fw-bold small mb-1">{{ course.course_name }}</div>
+                        <code class="text-muted" style="font-size:.7rem;">{{ course.course_code }}</code>
+                        <div class="mt-2 pt-2 border-top" style="font-size:.68rem;color:#94a3b8;">
+                            {% if course.has_project %}
+                            Vize 40% · Proje 20% · Final 40%
+                            {% else %}
+                            Vize 40% · Final 60%
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state py-4">
+            <i class="bi bi-book"></i>
+            <p>Atanmış ders bulunamadı.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if selected_course %}
+
+<!-- Özet kartlar -->
+<div class="row g-3 mb-4" id="summaryCards">
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value" id="totalCount">{{ student_grades | length }}</div>
+                <div class="stat-label">Toplam Öğrenci</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value" id="passCount">
+                    {{ student_grades | selectattr('grade') | selectattr('grade.is_passing') | list | length }}
+                </div>
+                <div class="stat-label">Geçen</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-red">
+            <div class="stat-icon"><i class="bi bi-x-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value" id="failCount">
+                    {{ student_grades | selectattr('grade') | rejectattr('grade.is_passing') | list | length }}
+                </div>
+                <div class="stat-label">Kalan</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card stat-card-orange">
+            <div class="stat-icon"><i class="bi bi-calculator-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value" id="classAvg">
+                    {% set entered = student_grades | selectattr('grade') | selectattr('grade.weighted_average') | list %}
+                    {% if entered %}
+                    {{ "%.1f"|format(entered | map(attribute='grade.weighted_average') | list | sum / entered | length) }}
+                    {% else %}—{% endif %}
+                </div>
+                <div class="stat-label">Sınıf Ort.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Not Tablosu -->
+<div class="card">
+    <div class="card-header">
+        <div>
+            <h6 class="mb-0">
+                <span class="badge bg-primary me-2">{{ selected_course.course_code }}</span>
+                {{ selected_course.course_name }}
+                {% if selected_course.has_project %}
+                <span class="badge ms-1" style="background:#fef9c3;color:#92400e;">Projeli</span>
+                {% endif %}
+            </h6>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <span class="text-muted small">{{ selected_course.class_name }}</span>
+            <input type="text" class="form-control form-control-sm" id="gradeSearch"
+                   placeholder="Öğrenci ara…" oninput="filterGrades(this.value)" style="width:160px;">
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="gradeTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Öğrenci</th>
+                        <th style="width:120px;">
+                            <div class="d-flex align-items-center gap-1">
+                                <i class="bi bi-journal-check text-primary" style="font-size:.8rem;"></i>
+                                Vize
+                                <span class="text-muted" style="font-size:.7rem;">40%</span>
+                            </div>
+                        </th>
+                        {% if selected_course.has_project %}
+                        <th style="width:120px;">
+                            <div class="d-flex align-items-center gap-1">
+                                <i class="bi bi-briefcase-fill text-warning" style="font-size:.8rem;"></i>
+                                Proje
+                                <span class="text-muted" style="font-size:.7rem;">20%</span>
+                            </div>
+                        </th>
+                        {% endif %}
+                        <th style="width:120px;">
+                            <div class="d-flex align-items-center gap-1">
+                                <i class="bi bi-file-earmark-check-fill text-success" style="font-size:.8rem;"></i>
+                                Final
+                                <span class="text-muted" style="font-size:.7rem;">{% if selected_course.has_project %}40{% else %}60{% endif %}%</span>
+                            </div>
+                        </th>
+                        <th style="width:90px;" class="text-center">Ortalama</th>
+                        <th style="width:70px;" class="text-center">Harf</th>
+                        <th style="width:90px;" class="text-center">Durum</th>
+                        <th style="width:60px;" class="text-center">Kaydet</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in student_grades %}
+                    <tr data-student-id="{{ row.student._id }}" data-course-id="{{ selected_course._id }}" data-saved="{% if row.grade %}1{% else %}0{% endif %}">
+                        <td class="text-muted small">{{ loop.index }}</td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="avatar-sm">{{ row.student.full_name[0] }}</div>
+                                <div>
+                                    <div class="fw-semibold small">{{ row.student.full_name }}</div>
+                                    <code class="text-muted" style="font-size:.68rem;">{{ row.student.student_number }}</code>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm grade-input vize-input"
+                                   min="0" max="100" step="0.5"
+                                   value="{{ row.grade.midterm_score if row.grade and row.grade.midterm_score is not none else '' }}"
+                                   placeholder="—" oninput="recalc(this)">
+                        </td>
+                        {% if selected_course.has_project %}
+                        <td>
+                            <input type="number" class="form-control form-control-sm grade-input proje-input"
+                                   min="0" max="100" step="0.5"
+                                   value="{{ row.grade.project_score if row.grade and row.grade.project_score is not none else '' }}"
+                                   placeholder="—" oninput="recalc(this)">
+                        </td>
+                        {% endif %}
+                        <td>
+                            <input type="number" class="form-control form-control-sm grade-input final-input"
+                                   min="0" max="100" step="0.5"
+                                   value="{{ row.grade.final_score if row.grade and row.grade.final_score is not none else '' }}"
+                                   placeholder="—" oninput="recalc(this)">
+                        </td>
+                        <td class="text-center">
+                            <span class="avg-display fw-bold {% if row.grade and row.grade.weighted_average %}{% if row.grade.weighted_average >= 70 %}text-success{% elif row.grade.weighted_average >= 60 %}text-warning{% else %}text-danger{% endif %}{% else %}text-muted{% endif %}">
+                                {% if row.grade and row.grade.weighted_average is not none %}
+                                {{ "%.1f"|format(row.grade.weighted_average) }}
+                                {% else %}—{% endif %}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="letter-display badge
+                                {% if row.grade and row.grade.letter_grade %}
+                                    {% if row.grade.letter_grade in ['AA','BA','BB'] %}bg-success
+                                    {% elif row.grade.letter_grade in ['CB','CC','DC','DD'] %}bg-warning text-dark
+                                    {% elif row.grade.letter_grade %}bg-danger
+                                    {% else %}bg-secondary{% endif %}
+                                {% else %}bg-secondary{% endif %}">
+                                {{ row.grade.letter_grade if row.grade and row.grade.letter_grade else '—' }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="status-display badge
+                                {% if row.grade and row.grade.is_passing is not none %}
+                                    {% if row.grade.is_passing %}bg-success-subtle text-success
+                                    {% else %}bg-danger-subtle text-danger{% endif %}
+                                {% else %}bg-light text-muted{% endif %}">
+                                {% if row.grade and row.grade.is_passing is not none %}
+                                    {{ '✓ Geçti' if row.grade.is_passing else '✗ Kaldı' }}
+                                {% else %}Girilmedi{% endif %}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm save-row-btn py-0 px-2"
+                                    onclick="saveRow(this)"
+                                    data-bs-toggle="tooltip" title="Kaydet"
+                                    style="{% if row.grade %}background:#dcfce7;color:#16a34a;border:1px solid #16a34a;{% else %}background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0;{% endif %}border-radius:.4rem;">
+                                <i class="bi {% if row.grade %}bi-check-lg{% else %}bi-floppy{% endif %}"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center">
+        <small class="text-muted"><i class="bi bi-keyboard me-1"></i>Tab ile bir sonraki alana geçin</small>
+        <button class="btn btn-primary" onclick="saveAll()" id="saveAllBtn2">
+            <i class="bi bi-floppy-fill me-2"></i>Tümünü Kaydet
+        </button>
+    </div>
+</div>
+
+{% else %}
+<!-- Boş durum -->
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state py-5">
+            <i class="bi bi-pencil-square"></i>
+            <p>Not girmek için yukarıdan bir ders seçin.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const HAS_PROJECT = {{ 'true' if selected_course and selected_course.has_project else 'false' }};
+const SEMESTER    = "{{ semester }}";
+const ACAD_YEAR   = "{{ academic_year }}";
+
+const LETTER_MAP = [
+    [90,'AA'],[85,'BA'],[80,'BB'],[75,'CB'],
+    [70,'CC'],[65,'DC'],[60,'DD'],[50,'FD'],[0,'FF']
+];
+
+function toLetter(score) {
+    for (const [t, l] of LETTER_MAP) { if (score >= t) return l; }
+    return 'FF';
+}
+
+function recalc(input) {
+    const row   = input.closest('tr');
+    const vize  = parseFloat(row.querySelector('.vize-input')?.value);
+    const final = parseFloat(row.querySelector('.final-input')?.value);
+    const projeEl = row.querySelector('.proje-input');
+    const proje = projeEl ? parseFloat(projeEl.value) : NaN;
+
+    if (isNaN(vize) || isNaN(final)) return;
+
+    let avg;
+    if (HAS_PROJECT && !isNaN(proje)) {
+        avg = Math.round((vize*0.40 + proje*0.20 + final*0.40) * 100) / 100;
+    } else if (HAS_PROJECT) {
+        avg = Math.round((vize*0.40 + final*0.40) * 100) / 100;  // proje girilmedi
+    } else {
+        avg = Math.round((vize*0.40 + final*0.60) * 100) / 100;
+    }
+
+    const letter  = toLetter(avg);
+    const passing = !['FF','FD'].includes(letter);
+
+    // Ortalama
+    const avgEl = row.querySelector('.avg-display');
+    avgEl.textContent = avg.toFixed(1);
+    avgEl.className = 'avg-display fw-bold ' + (avg >= 70 ? 'text-success' : avg >= 60 ? 'text-warning' : 'text-danger');
+
+    // Harf
+    const ld = row.querySelector('.letter-display');
+    ld.textContent = letter;
+    ld.className   = 'letter-display badge ' + (['AA','BA','BB'].includes(letter) ? 'bg-success' : ['CB','CC','DC','DD'].includes(letter) ? 'bg-warning text-dark' : 'bg-danger');
+
+    // Durum
+    const sd = row.querySelector('.status-display');
+    sd.textContent = passing ? '✓ Geçti' : '✗ Kaldı';
+    sd.className   = 'status-display badge ' + (passing ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger');
+
+    // Kaydet butonu — değişti işareti
+    const btn = row.querySelector('.save-row-btn');
+    btn.style.background = '#fef9c3'; btn.style.color = '#92400e'; btn.style.borderColor = '#d97706';
+    btn.innerHTML = '<i class="bi bi-floppy"></i>';
+
+    updateSummary();
+}
+
+function updateSummary() {
+    const rows  = document.querySelectorAll('#gradeTable tbody tr');
+    let pass = 0, fail = 0, total = 0, sum = 0;
+    rows.forEach(r => {
+        const avg = parseFloat(r.querySelector('.avg-display')?.textContent);
+        if (!isNaN(avg)) {
+            total++; sum += avg;
+            const letter = r.querySelector('.letter-display')?.textContent.trim();
+            if (['FF','FD'].includes(letter)) fail++; else pass++;
+        }
+    });
+    const pc = document.getElementById('passCount');
+    const fc = document.getElementById('failCount');
+    const ac = document.getElementById('classAvg');
+    if (pc) pc.textContent = pass;
+    if (fc) fc.textContent = fail;
+    if (ac) ac.textContent = total ? (sum/total).toFixed(1) : '—';
+}
+
+async function saveRow(btn) {
+    const row       = btn.closest('tr');
+    const studentId = row.dataset.studentId;
+    const courseId  = row.dataset.courseId;
+    const vize  = parseFloat(row.querySelector('.vize-input')?.value);
+    const final = parseFloat(row.querySelector('.final-input')?.value);
+    const projeEl = row.querySelector('.proje-input');
+    const proje = projeEl ? parseFloat(projeEl.value) : null;
+
+    if (isNaN(vize) || isNaN(final)) {
+        showToast('warning', 'Vize ve final notu giriniz.');
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    const body = {
+        student_id: studentId, course_id: courseId,
+        midterm_score: vize, final_score: final,
+        project_score: (HAS_PROJECT && proje !== null && !isNaN(proje)) ? proje : null,
+        semester: SEMESTER, academic_year: ACAD_YEAR,
+    };
+
+    try {
+        const res  = await fetch('/grades/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (data.success) {
+            btn.style.background = '#dcfce7'; btn.style.color = '#16a34a'; btn.style.borderColor = '#16a34a';
+            btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+            row.dataset.saved = '1';
+            showToast('success', 'Not kaydedildi.');
+        } else {
+            btn.style.background = '#fee2e2'; btn.style.color = '#dc2626'; btn.style.borderColor = '#dc2626';
+            btn.innerHTML = '<i class="bi bi-exclamation"></i>';
+            showToast('danger', data.message || 'Hata oluştu.');
+        }
+    } catch {
+        btn.innerHTML = '<i class="bi bi-exclamation"></i>';
+        showToast('danger', 'Sunucu hatası.');
+    }
+    btn.disabled = false;
+}
+
+async function saveAll() {
+    const rows = document.querySelectorAll('#gradeTable tbody tr');
+    let saved = 0, skipped = 0, errors = 0;
+
+    const btn1 = document.getElementById('saveAllBtn');
+    const btn2 = document.getElementById('saveAllBtn2');
+    [btn1,btn2].forEach(b => { if(b){ b.disabled=true; b.innerHTML='<span class="spinner-border spinner-border-sm me-2"></span>Kaydediliyor…'; } });
+
+    for (const row of rows) {
+        const vize  = parseFloat(row.querySelector('.vize-input')?.value);
+        const final = parseFloat(row.querySelector('.final-input')?.value);
+        if (isNaN(vize) || isNaN(final)) { skipped++; continue; }
+
+        const studentId = row.dataset.studentId;
+        const courseId  = row.dataset.courseId;
+        const projeEl   = row.querySelector('.proje-input');
+        const proje     = projeEl ? parseFloat(projeEl.value) : null;
+
+        const body = {
+            student_id: studentId, course_id: courseId,
+            midterm_score: vize, final_score: final,
+            project_score: (HAS_PROJECT && proje !== null && !isNaN(proje)) ? proje : null,
+            semester: SEMESTER, academic_year: ACAD_YEAR,
+        };
+
+        try {
+            const res = await fetch('/grades/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            if (res.ok) {
+                saved++;
+                const btn = row.querySelector('.save-row-btn');
+                if(btn){ btn.style.background='#dcfce7'; btn.style.color='#16a34a'; btn.style.borderColor='#16a34a'; btn.innerHTML='<i class="bi bi-check-lg"></i>'; }
+            } else errors++;
+        } catch { errors++; }
+    }
+
+    [btn1,btn2].forEach(b => { if(b){ b.disabled=false; b.innerHTML='<i class="bi bi-floppy-fill me-2"></i>Tümünü Kaydet'; } });
+
+    if (errors === 0) showToast('success', `${saved} öğrenci notu kaydedildi.${skipped ? ` (${skipped} atlandı)` : ''}`);
+    else showToast('warning', `${saved} kaydedildi, ${errors} hata.`);
+
+    updateSummary();
+}
+
+function filterGrades(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#gradeTable tbody tr').forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+// Tooltip init
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+
+async function uploadCSV() {
+    const fileInput = document.getElementById('csvFileInput');
+    const resultDiv = document.getElementById('csvResult');
+    const uploadBtn = document.getElementById('csvUploadBtn');
+
+    if (!fileInput.files.length) {
+        resultDiv.className = 'alert alert-warning py-2';
+        resultDiv.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Lütfen bir CSV dosyası seçin.';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('csv_file', fileInput.files[0]);
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Yükleniyor…';
+    resultDiv.className = 'd-none';
+
+    try {
+        const res  = await fetch('/grades/upload-csv', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+            const { success_count, error_count, errors } = data.data || {};
+            let html = `<div class="d-flex gap-3 mb-2">
+                <span class="badge bg-success fs-6">${success_count} başarılı</span>
+                ${error_count > 0 ? `<span class="badge bg-danger fs-6">${error_count} hatalı</span>` : ''}
+            </div>`;
+            if (errors && errors.length) {
+                html += `<ul class="mb-0 ps-3 small text-danger">` + errors.map(e => `<li>${e}</li>`).join('') + `</ul>`;
+            }
+            resultDiv.className = `alert ${error_count > 0 ? 'alert-warning' : 'alert-success'} py-2`;
+            resultDiv.innerHTML = html;
+            showToast('success', data.message || `${success_count} not yüklendi.`);
+        } else {
+            resultDiv.className = 'alert alert-danger py-2';
+            resultDiv.innerHTML = `<i class="bi bi-x-circle me-1"></i>${data.message || 'Yükleme başarısız.'}`;
+            showToast('danger', data.message || 'Hata oluştu.');
+        }
+    } catch {
+        resultDiv.className = 'alert alert-danger py-2';
+        resultDiv.innerHTML = '<i class="bi bi-x-circle me-1"></i>Sunucu hatası.';
+        showToast('danger', 'Sunucu hatası.');
+    }
+
+    uploadBtn.disabled = false;
+    uploadBtn.innerHTML = '<i class="bi bi-cloud-upload-fill me-2"></i>Yükle';
+}
+</script>
+{% endblock %}

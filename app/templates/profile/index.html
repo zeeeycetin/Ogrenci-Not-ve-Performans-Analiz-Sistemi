@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Profil{% endblock %}
+
+{% block content %}
+
+<!-- ── Hero Banner ─────────────────────────────────────────── -->
+<div class="prf-hero mb-4">
+    <div class="prf-hero-deco"></div>
+    <div class="prf-hero-content">
+        <div class="prf-avatar">{{ user.full_name[0] | upper }}</div>
+        <div>
+            <h4 class="mb-1">{{ user.full_name }}</h4>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="badge" style="background:rgba(255,255,255,.18);color:#fff;font-size:.75rem;border:1px solid rgba(255,255,255,.25);">
+                    <i class="bi bi-{% if user.role == 'teacher' %}mortarboard-fill{% else %}person-fill{% endif %} me-1"></i>
+                    {{ 'Öğretmen' if user.role == 'teacher' else 'Öğrenci' }}
+                </span>
+                {% if user.email %}
+                <span style="color:rgba(255,255,255,.65);font-size:.82rem;">{{ user.email }}</span>
+                {% endif %}
+                {% if profile %}
+                    {% if user.role == 'teacher' and profile.department %}
+                    <span style="color:rgba(255,255,255,.5);font-size:.78rem;">· {{ profile.department }}</span>
+                    {% elif user.role != 'teacher' and profile.class_name %}
+                    <span style="color:rgba(255,255,255,.5);font-size:.78rem;">· {{ profile.class_name }}</span>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- ── Sol: Kişisel Bilgiler ────────────────────────────── -->
+    <div class="col-lg-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-person-lines-fill me-2 text-primary"></i>Kişisel Bilgiler</h6>
+            </div>
+            <div class="card-body">
+                {% if profile %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-person me-1"></i>Ad Soyad</span>
+                    <span class="info-value fw-semibold">{{ profile.full_name or user.full_name }}</span>
+                </div>
+
+                {% if user.role == 'teacher' %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-hash me-1"></i>Öğretmen ID</span>
+                    <span class="info-value"><code>{{ profile.teacher_id or '—' }}</code></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-tag me-1"></i>Öğretmen No</span>
+                    <span class="info-value">{{ profile.teacher_number or '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-building me-1"></i>Bölüm</span>
+                    <span class="info-value">{{ profile.department or '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-bookmark me-1"></i>Branş</span>
+                    <span class="info-value">{{ profile.branch or '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-telephone me-1"></i>Telefon</span>
+                    <span class="info-value">{{ profile.phone or '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-clock me-1"></i>Son Giriş</span>
+                    <span class="info-value text-muted" style="font-size:.8rem;">
+                        {{ profile.last_login | string | truncate(19, true, '') if profile.last_login else '—' }}
+                    </span>
+                </div>
+
+                {% else %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-hash me-1"></i>Öğrenci No</span>
+                    <span class="info-value"><code>{{ profile.student_number or '—' }}</code></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-building me-1"></i>Sınıf</span>
+                    <span class="info-value">
+                        <span class="badge bg-primary-subtle text-primary">{{ profile.class_name or '—' }}</span>
+                    </span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-gender-ambiguous me-1"></i>Cinsiyet</span>
+                    <span class="info-value">{{ profile.gender or '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-telephone me-1"></i>Telefon</span>
+                    <span class="info-value">{{ profile.phone or '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-telephone-outbound me-1"></i>Veli Tel.</span>
+                    <span class="info-value">{{ profile.parent_phone or '—' }}</span>
+                </div>
+
+                {% if profile.performance_label and profile.performance_label != 'Belirsiz' %}
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-graph-up me-1"></i>Performans</span>
+                    <span class="info-value">
+                        <span class="badge
+                            {% if profile.performance_label == 'Üstün Başarılı' %}perf-ustun
+                            {% elif profile.performance_label == 'İyi' %}perf-iyi
+                            {% elif profile.performance_label == 'Orta' %}perf-orta
+                            {% elif profile.performance_label == 'Gelişim Gerekli' %}perf-gelisim
+                            {% else %}perf-kritik{% endif %}">
+                            {{ profile.performance_label }}
+                        </span>
+                    </span>
+                </div>
+                {% endif %}
+                {% endif %}
+
+                <div class="info-row">
+                    <span class="info-label"><i class="bi bi-calendar-check me-1"></i>Kayıt Tarihi</span>
+                    <span class="info-value text-muted" style="font-size:.8rem;">
+                        {{ profile.created_at | string | truncate(10, true, '') if profile.created_at else '—' }}
+                    </span>
+                </div>
+
+                {% else %}
+                <p class="text-muted small">Profil bilgisi bulunamadı.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Sağ: Akademik Özet ───────────────────────────────── -->
+    <div class="col-lg-7">
+        {% if user.role == 'teacher' %}
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-book-fill me-2 text-primary"></i>Sorumlu Dersler</h6>
+                {% if assigned_courses %}
+                <span class="badge bg-primary-subtle text-primary">{{ assigned_courses | length }} ders</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if assigned_courses %}
+                <div class="row g-2">
+                    {% for c in assigned_courses %}
+                    <div class="col-sm-6">
+                        <div class="prf-course-card">
+                            <div class="prf-course-abbr">{{ c.course_code[:3] if c.course_code else 'DRS' }}</div>
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="fw-bold small text-truncate">{{ c.course_name }}</div>
+                                <div class="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                                    <code class="text-muted" style="font-size:.68rem;">{{ c.course_code }}</code>
+                                    <span class="badge bg-primary-subtle text-primary" style="font-size:.6rem;">{{ c.class_name }}</span>
+                                    {% if c.has_project %}
+                                    <span class="badge bg-warning-subtle text-warning" style="font-size:.6rem;">Projeli</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state py-3">
+                    <i class="bi bi-book"></i>
+                    <p>Atanmış ders yok.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% else %}
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-graph-up me-2 text-primary"></i>Not Özeti</h6>
+                {% if grades %}
+                <span class="badge bg-primary-subtle text-primary">{{ grades | length }} ders</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if grades %}
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Ders</th>
+                            <th class="text-center">Ortalama</th>
+                            <th class="text-center">Harf</th>
+                            <th class="text-center">Durum</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for g in grades %}
+                        <tr>
+                            <td class="small fw-semibold ps-3">{{ g.course.course_name if g.course else '—' }}</td>
+                            <td class="text-center">
+                                <span class="fw-bold {% if g.weighted_average >= 70 %}text-success{% elif g.weighted_average >= 60 %}text-warning{% elif g.weighted_average %}text-danger{% else %}text-muted{% endif %}">
+                                    {{ "%.1f"|format(g.weighted_average) if g.weighted_average is not none else '—' }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {% if g.letter_grade in ['AA','BA','BB'] %}bg-success{% elif g.letter_grade in ['CB','CC','DC','DD'] %}bg-warning text-dark{% elif g.letter_grade %}bg-danger{% else %}bg-secondary{% endif %}"
+                                      style="font-size:.7rem;">
+                                    {{ g.letter_grade or '—' }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if g.is_passing is not none %}
+                                <span class="badge {% if g.is_passing %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}" style="font-size:.7rem;">
+                                    {% if g.is_passing %}✓ Geçti{% else %}✗ Kaldı{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary" style="font-size:.7rem;">Girilmedi</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state py-3">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <p>Not verisi yok.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

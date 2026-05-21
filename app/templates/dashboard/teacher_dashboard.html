@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+{% block title %}Öğretmen Paneli{% endblock %}
+
+{% block content %}
+
+<!-- ── Welcome Banner ─────────────────────────────────────── -->
+<div class="teacher-welcome-banner mb-4">
+    <div class="twb-content">
+        <div class="twb-left">
+            <div class="twb-avatar">{{ user.full_name[0] | upper }}</div>
+            <div>
+                <h4 class="twb-greeting">
+                    Hoş geldiniz, <span>{{ user.full_name.split()[0] }}</span> 👋
+                </h4>
+                <p class="twb-sub">
+                    <i class="bi bi-calendar3 me-1"></i>{{ academic_year }} Akademik Yılı &nbsp;·&nbsp;
+                    <i class="bi bi-mortarboard-fill me-1"></i>
+                    {% if dashboard.class_names %}{{ dashboard.class_names | join(', ') }}{% else %}—{% endif %}
+                </p>
+            </div>
+        </div>
+        <div class="twb-right d-none d-md-flex">
+            <select class="form-select form-select-sm twb-select" onchange="location.href='?academic_year='+this.value">
+                <option value="2024-2025" {% if academic_year == '2024-2025' %}selected{% endif %}>2024–2025</option>
+                <option value="2023-2024" {% if academic_year == '2023-2024' %}selected{% endif %}>2023–2024</option>
+            </select>
+            <a href="{{ url_for('grades.grade_entry') }}" class="btn twb-action-btn">
+                <i class="bi bi-pencil-fill me-1"></i>Not Gir
+            </a>
+            <a href="{{ url_for('attendance.record_form') }}" class="btn twb-action-btn twb-action-secondary">
+                <i class="bi bi-clipboard2-check-fill me-1"></i>Yoklama
+            </a>
+        </div>
+    </div>
+    <!-- Dekoratif circle -->
+    <div class="twb-deco twb-deco-1"></div>
+    <div class="twb-deco twb-deco-2"></div>
+    <div class="twb-deco twb-deco-3"></div>
+</div>
+
+{% if error %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+    <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>{{ error }}
+</div>
+{% else %}
+
+<!-- ── Stat Cards ─────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value countup">{{ dashboard.student_count }}</div>
+                <div class="stat-label">Toplam Öğrenci</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-book-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value countup">{{ dashboard.course_count }}</div>
+                <div class="stat-label">Atanmış Ders</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card stat-card-orange">
+            <div class="stat-icon"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="stat-info">
+                <div class="stat-value countup">{{ dashboard.overall_average }}</div>
+                <div class="stat-label">Genel Ortalama</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-xl-3">
+        <div class="stat-card {% if dashboard.pass_rate >= 70 %}stat-card-green{% elif dashboard.pass_rate >= 50 %}stat-card-orange{% else %}stat-card-red{% endif %}">
+            <div class="stat-icon"><i class="bi bi-patch-check-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">%{{ dashboard.pass_rate }}</div>
+                <div class="stat-label">Geçme Oranı</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Ana Grafikler ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <!-- Bar chart — ders ortalamaları -->
+    <div class="col-lg-8">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Ders Bazlı Ortalamalar</h6>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="d-flex align-items-center gap-1" style="font-size:.72rem;color:#10b981;"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block;"></span>≥70</span>
+                    <span class="d-flex align-items-center gap-1" style="font-size:.72rem;color:#f59e0b;"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>60-70</span>
+                    <span class="d-flex align-items-center gap-1" style="font-size:.72rem;color:#ef4444;"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;"></span>&lt;60</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <canvas id="courseAvgChart" height="115"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geçti/Kaldı doughnut -->
+    <div class="col-lg-4">
+        <div class="card chart-card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-pie-chart-fill me-2 text-success"></i>Başarı Dağılımı</h6>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center gap-2">
+                <div style="position:relative;width:150px;height:150px;">
+                    <canvas id="passFailChart" width="150" height="150"></canvas>
+                    <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;">
+                        <div class="fw-800 text-success" style="font-size:1.6rem;font-weight:800;line-height:1;">%{{ dashboard.pass_rate }}</div>
+                        <div style="font-size:.68rem;color:#94a3b8;">geçti</div>
+                    </div>
+                </div>
+                <div class="d-flex gap-4 w-100 justify-content-center mt-1">
+                    <div class="text-center">
+                        <div style="font-size:.68rem;color:#94a3b8;">GEÇEN</div>
+                        <div class="fw-bold text-success" style="font-size:1.1rem;">{{ stats.pass_count if stats.pass_count is defined else '—' }}</div>
+                    </div>
+                    <div class="vr"></div>
+                    <div class="text-center">
+                        <div style="font-size:.68rem;color:#94a3b8;">KALAN</div>
+                        <div class="fw-bold text-danger" style="font-size:1.1rem;">{{ stats.fail_count if stats.fail_count is defined else '—' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Sınıflar + Sistem İstatistikleri ──────────────────── -->
+<div class="row g-3 mb-4">
+    <!-- Sınıflar -->
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-mortarboard-fill me-2" style="color:#8b5cf6;"></i>Sınıflarım</h6>
+                <span class="badge bg-primary-subtle text-primary">{{ dashboard.class_names | length }} sınıf</span>
+            </div>
+            <div class="card-body">
+                {% for cls in dashboard.class_names %}
+                <div class="class-link-card d-flex align-items-center justify-content-between mb-2">
+                    <a href="{{ url_for('analytics.class_analysis', class_name=cls) }}"
+                       class="text-decoration-none d-flex align-items-center gap-3 flex-grow-1">
+                        <div class="class-link-icon">{{ loop.index }}</div>
+                        <div>
+                            <div class="fw-semibold small">{{ cls }}</div>
+                            <div class="text-muted" style="font-size:.7rem;">Sınıf analizi görüntüle</div>
+                        </div>
+                    </a>
+                    <div class="d-flex align-items-center gap-1">
+                        <a href="{{ url_for('reports.class_report', class_name=cls) }}" target="_blank"
+                           class="btn btn-sm p-1 px-2" style="font-size:.7rem;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;border-radius:.4rem;"
+                           data-bs-toggle="tooltip" title="PDF İndir">
+                            <i class="bi bi-file-pdf-fill"></i>
+                        </a>
+                        <i class="bi bi-arrow-right-circle text-primary ms-1"></i>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state py-3">
+                    <i class="bi bi-mortarboard"></i>
+                    <p>Sınıf bulunamadı.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sistem özeti -->
+    <div class="col-md-7">
+        <div class="card h-100">
+            <div class="card-header">
+                <h6><i class="bi bi-database-fill me-2 text-info"></i>Sistem İstatistikleri</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="sys-stat-box" style="--accent:#3b82f6;--accent-bg:#eff6ff;">
+                            <div class="sys-stat-icon" style="color:#3b82f6;"><i class="bi bi-people-fill"></i></div>
+                            <div class="sys-stat-value" style="color:#1d4ed8;">{{ stats.total_students }}</div>
+                            <div class="sys-stat-label">Öğrenci</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="sys-stat-box" style="--accent:#10b981;--accent-bg:#f0fdf4;">
+                            <div class="sys-stat-icon" style="color:#10b981;"><i class="bi bi-person-workspace"></i></div>
+                            <div class="sys-stat-value" style="color:#15803d;">{{ stats.total_teachers }}</div>
+                            <div class="sys-stat-label">Öğretmen</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="sys-stat-box" style="--accent:#f59e0b;--accent-bg:#fff7ed;">
+                            <div class="sys-stat-icon" style="color:#f59e0b;"><i class="bi bi-book-fill"></i></div>
+                            <div class="sys-stat-value" style="color:#c2410c;">{{ stats.total_courses }}</div>
+                            <div class="sys-stat-label">Ders</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="sys-stat-box" style="--accent:#8b5cf6;--accent-bg:#f5f3ff;">
+                            <div class="sys-stat-icon" style="color:#8b5cf6;"><i class="bi bi-file-earmark-check-fill"></i></div>
+                            <div class="sys-stat-value" style="color:#6d28d9;">{{ stats.total_grades }}</div>
+                            <div class="sys-stat-label">Not Kaydı</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Hızlı Erişim + Destek ──────────────────────────── -->
+<div class="row g-3 mb-4">
+    <!-- Excel İndir -->
+    <div class="col-md-4">
+        <div class="card h-100" style="border-left:4px solid #10b981;">
+            <div class="card-body d-flex flex-column gap-2">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="bi bi-file-earmark-excel-fill text-success fs-4"></i>
+                    <h6 class="mb-0 fw-bold">Not Dışa Aktar</h6>
+                </div>
+                <p class="text-muted small mb-2">Sınıf notlarını Excel formatında indirin.</p>
+                {% if dashboard.class_names %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% for cls in dashboard.class_names %}
+                    <a href="{{ url_for('grades.export_excel', class_name=cls) }}"
+                       class="btn btn-sm btn-success">
+                        <i class="bi bi-download me-1"></i>{{ cls }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <a href="{{ url_for('grades.export_excel') }}" class="btn btn-sm btn-success">
+                    <i class="bi bi-download me-1"></i>Tüm Notları İndir
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Yoklama -->
+    <div class="col-md-4">
+        <div class="card h-100" style="border-left:4px solid #8b5cf6;">
+            <div class="card-body d-flex flex-column gap-2">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="bi bi-qr-code-scan fs-4" style="color:#8b5cf6;"></i>
+                    <h6 class="mb-0 fw-bold">QR Yoklama</h6>
+                </div>
+                <p class="text-muted small mb-2">Yoklama sayfasından ders seçerek QR kod oluşturun.</p>
+                <a href="{{ url_for('attendance.record_form') }}" class="btn btn-sm" style="background:#8b5cf6;color:#fff;">
+                    <i class="bi bi-clipboard2-check me-1"></i>Yoklama Al
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Destek -->
+    <div class="col-md-4">
+        <div class="card h-100" style="border-left:4px solid #f59e0b;">
+            <div class="card-body d-flex flex-column gap-2">
+                <div class="d-flex align-items-center gap-2 mb-1">
+                    <i class="bi bi-headset fs-4 text-warning"></i>
+                    <h6 class="mb-0 fw-bold">Destek & Yardım</h6>
+                </div>
+                <ul class="list-unstyled small text-muted mb-2" style="line-height:1.8;">
+                    <li><i class="bi bi-dot"></i>Not girişi için <strong>Not Girişi</strong> menüsünü kullanın.</li>
+                    <li><i class="bi bi-dot"></i>CSV ile toplu not yükleyebilirsiniz.</li>
+                    <li><i class="bi bi-dot"></i>Yoklama için QR kodu oluşturun.</li>
+                    <li><i class="bi bi-dot"></i>Öğrencilere mesaj göndermek için Mesajlar'ı kullanın.</li>
+                </ul>
+                <a href="{{ url_for('messages.compose') }}" class="btn btn-sm btn-warning text-white">
+                    <i class="bi bi-envelope me-1"></i>Mesaj Gönder
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Top Öğrenciler + Risk Öğrenciler ──────────────────── -->
+<div class="row g-3">
+    <!-- En başarılılar -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="bi bi-trophy-fill me-2 text-warning"></i>En Başarılı Öğrenciler</h6>
+                <span class="badge" style="background:#fef9c3;color:#92400e;">Top 5</span>
+            </div>
+            <div class="card-body p-0">
+                {% if dashboard.top_students %}
+                <div class="student-rank-list">
+                    {% for s in dashboard.top_students %}
+                    <div class="student-rank-item">
+                        <div class="rank-badge rank-{{ loop.index }}">
+                            {% if loop.index == 1 %}🥇
+                            {% elif loop.index == 2 %}🥈
+                            {% elif loop.index == 3 %}🥉
+                            {% else %}{{ loop.index }}{% endif %}
+                        </div>
+                        <div class="avatar-sm" style="width:34px;height:34px;font-size:.8rem;">{{ s.full_name[0] }}</div>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold small text-truncate">{{ s.full_name }}</div>
+                            <span class="badge bg-primary-subtle text-primary" style="font-size:.62rem;">{{ s.class_name }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fw-800 text-success" style="font-size:1rem;font-weight:800;min-width:40px;text-align:right;">{{ "%.1f"|format(s.avg_score or 0) }}</span>
+                            <a href="{{ url_for('analytics.student_analysis', student_id=s.id) }}"
+                               class="btn btn-sm btn-outline-success py-0 px-2">
+                                <i class="bi bi-graph-up"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state py-4"><i class="bi bi-trophy"></i><p>Veri yok.</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk altındakiler -->
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>Desteke İhtiyaç Duyanlar</h6>
+                <span class="badge bg-danger-subtle text-danger">Risk</span>
+            </div>
+            <div class="card-body p-0">
+                {% if dashboard.bottom_students %}
+                <div class="student-rank-list">
+                    {% for s in dashboard.bottom_students %}
+                    <div class="student-rank-item">
+                        <div class="risk-number">{{ loop.index }}</div>
+                        <div class="avatar-sm" style="width:34px;height:34px;font-size:.8rem;background:linear-gradient(135deg,#ef4444,#dc2626);">{{ s.full_name[0] }}</div>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="fw-semibold small text-truncate">{{ s.full_name }}</div>
+                            <span class="badge bg-primary-subtle text-primary" style="font-size:.62rem;">{{ s.class_name }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="text-end">
+                                <span class="fw-800 text-danger" style="font-size:1rem;font-weight:800;min-width:40px;display:block;">{{ "%.1f"|format(s.avg_score or 0) }}</span>
+                                <div class="progress" style="height:3px;width:50px;">
+                                    <div class="progress-bar bg-danger" style="width:{{ [(s.avg_score or 0), 100] | min }}%"></div>
+                                </div>
+                            </div>
+                            <a href="{{ url_for('analytics.student_analysis', student_id=s.id) }}"
+                               class="btn btn-sm btn-outline-danger py-0 px-2">
+                                <i class="bi bi-graph-up"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state py-4"><i class="bi bi-shield-check"></i><p>Risk altında öğrenci yok.</p></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const courseData = {{ dashboard.course_averages | tojson | safe }};
+const passRate   = {{ dashboard.pass_rate }};
+
+// ── Ders ortalama bar chart ──────────────────────────────────
+(function() {
+    const ctx    = document.getElementById('courseAvgChart').getContext('2d');
+    const colors = courseData.map(c => c.avg_score >= 70 ? '#10b981' : c.avg_score >= 60 ? '#f59e0b' : '#ef4444');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: courseData.map(c => c.course_name),
+            datasets: [{
+                label: 'Ortalama',
+                data: courseData.map(c => c.avg_score ? parseFloat(c.avg_score.toFixed(1)) : 0),
+                backgroundColor: colors.map(c => c + 'cc'),
+                borderColor: colors,
+                borderWidth: 1.5,
+                borderRadius: 10,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family:'Montserrat', size:12 },
+                    bodyFont:  { family:'Montserrat', size:11 },
+                    callbacks: {
+                        label: ctx => ` Ortalama: ${ctx.parsed.y}`,
+                        afterLabel: ctx => ` Kayıt: ${courseData[ctx.dataIndex].count || 0} öğrenci`,
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true, max: 100,
+                    grid: { color: '#f1f5f9' },
+                    ticks: { font: { family:'Montserrat', size:11 }, callback: v => v }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { family:'Montserrat', size:10 }, maxRotation: 25 }
+                }
+            }
+        }
+    });
+})();
+
+// ── Geçti/Kaldı doughnut ────────────────────────────────────
+(function() {
+    const ctx = document.getElementById('passFailChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Geçti','Kaldı'],
+            datasets: [{
+                data: [passRate, 100 - passRate],
+                backgroundColor: ['#10b981','#ef4444'],
+                borderWidth: 0,
+                hoverOffset: 6,
+            }]
+        },
+        options: {
+            cutout: '70%',
+            responsive: false,
+            plugins: { legend: { display: false } }
+        }
+    });
+})();
+</script>
+{% endblock %}

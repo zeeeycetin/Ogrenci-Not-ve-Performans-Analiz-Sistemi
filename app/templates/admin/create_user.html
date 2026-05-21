@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Yeni Kullanıcı Oluştur{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div>
+        <h4><i class="bi bi-person-plus-fill me-2 text-primary"></i>Yeni Kullanıcı</h4>
+        <p class="text-muted mb-0">Sisteme yeni bir kullanıcı ekleyin</p>
+    </div>
+    <a href="{{ url_for('admin.user_list') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Geri
+    </a>
+</div>
+
+<div class="card" style="max-width:560px;">
+    <div class="card-body">
+
+        {% if errors %}
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Lütfen hataları düzeltin:</strong>
+            <ul class="mb-0 mt-1">
+                {% for field, msg in errors.items() %}
+                <li>{{ msg }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Ad Soyad</label>
+                <input type="text" name="full_name" value="{{ request.form.get('full_name','') }}"
+                    class="form-control {% if errors and errors.full_name %}is-invalid{% endif %}" required>
+                {% if errors and errors.full_name %}
+                <div class="invalid-feedback">{{ errors.full_name }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3" id="usernameField">
+                <label class="form-label fw-semibold">Kullanıcı Adı</label>
+                <input type="text" name="username" id="usernameInput" value="{{ request.form.get('username','') }}"
+                    class="form-control {% if errors and errors.username %}is-invalid{% endif %}">
+                {% if errors and errors.username %}
+                <div class="invalid-feedback">{{ errors.username }}</div>
+                {% endif %}
+                <div class="form-text" id="usernameHint"></div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">E-posta</label>
+                <input type="email" name="email" value="{{ request.form.get('email','') }}"
+                    class="form-control {% if errors and errors.email %}is-invalid{% endif %}" required>
+                {% if errors and errors.email %}
+                <div class="invalid-feedback">{{ errors.email }}</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Şifre</label>
+                <input type="password" name="password"
+                    class="form-control {% if errors and errors.password %}is-invalid{% endif %}"
+                    required minlength="8">
+                {% if errors and errors.password %}
+                <div class="invalid-feedback">{{ errors.password }}</div>
+                {% else %}
+                <div class="form-text">En az 6 karakter olmalıdır.</div>
+                {% endif %}
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Rol</label>
+                <select name="role" class="form-select" required>
+                    <option value="student" {% if request.form.get('role')=='student' %}selected{% endif %}>Öğrenci</option>
+                    <option value="teacher" {% if request.form.get('role')=='teacher' %}selected{% endif %}>Öğretmen</option>
+                    <option value="admin"   {% if request.form.get('role')=='admin'   %}selected{% endif %}>Yönetici</option>
+                </select>
+            </div>
+
+            <!-- Öğretmen ek alanları -->
+            <div id="teacherFields" class="mb-3" style="display:none;">
+                <div class="row g-2 mb-2">
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Öğretmen No</label>
+                        <input type="text" name="teacher_number" value="{{ request.form.get('teacher_number','') }}"
+                               class="form-control" placeholder="T-2024-001 (boş bırakılırsa otomatik)">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label fw-semibold">Bölüm / Branş</label>
+                        <input type="text" name="branch" value="{{ request.form.get('branch','') }}" class="form-control" placeholder="Matematik">
+                    </div>
+                </div>
+
+                <label class="form-label fw-semibold mt-2">
+                    Atandığı Sınıflar
+                    <span class="text-muted fw-normal small">(birden fazla seçilebilir)</span>
+                </label>
+                {% if class_names %}
+                <div class="border rounded p-2 mb-2 d-flex flex-wrap gap-2">
+                    {% for cn in class_names %}
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input" type="checkbox" name="direct_class_names"
+                               value="{{ cn }}" id="dcn_new_{{ loop.index }}"
+                               {% if cn in request.form.getlist('direct_class_names') %}checked{% endif %}>
+                        <label class="form-check-label small" for="dcn_new_{{ loop.index }}">{{ cn }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <label class="form-label fw-semibold mt-2">
+                    Verilecek Dersler
+                    <span class="text-muted fw-normal small">(birden fazla seçilebilir)</span>
+                </label>
+                {% if courses %}
+                <div class="border rounded p-2" style="max-height:220px;overflow-y:auto;">
+                    {% for class_name, course_group in courses|groupby('class_name') %}
+                    <div class="mb-2">
+                        <div class="text-primary fw-semibold small px-1 mb-1">
+                            <i class="bi bi-building me-1"></i>{{ class_name or 'Sınıfsız' }}
+                        </div>
+                        {% for c in course_group %}
+                        <div class="form-check ms-3">
+                            <input class="form-check-input" type="checkbox" name="course_ids"
+                                   value="{{ c.id }}" id="c_{{ c.id }}"
+                                   {% if c.id in request.form.getlist('course_ids') %}checked{% endif %}>
+                            <label class="form-check-label small" for="c_{{ c.id }}">
+                                <span class="badge bg-secondary me-1" style="font-size:.68rem;">{{ c.course_code }}</span>
+                                {{ c.course_name }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-muted small border rounded p-2">
+                    <i class="bi bi-info-circle me-1"></i>Sistemde henüz ders tanımlanmamış.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Öğrenci ek alanları -->
+            <div id="studentFields" class="mb-3" style="display:none;">
+                <label class="form-label fw-semibold">Sınıf</label>
+                <select name="class_name" class="form-select">
+                    <option value="">-- Sınıf Seçin --</option>
+                    {% for cn in class_names %}
+                    <option value="{{ cn }}" {% if request.form.get('class_name') == cn %}selected{% endif %}>{{ cn }}</option>
+                    {% else %}
+                    <option disabled>Sistemde sınıf tanımlanmamış</option>
+                    {% endfor %}
+                </select>
+                <label class="form-label fw-semibold mt-2">Cinsiyet</label>
+                <select name="gender" class="form-select">
+                    <option value="">Seçiniz</option>
+                    <option value="Erkek" {% if request.form.get('gender')=='Erkek' %}selected{% endif %}>Erkek</option>
+                    <option value="Kadın" {% if request.form.get('gender') in ['Kadın','Kız'] %}selected{% endif %}>Kadın</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mt-2">
+                <i class="bi bi-person-check-fill me-1"></i>Kullanıcı Oluştur
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+const roleSelect    = document.querySelector('select[name="role"]');
+const teacherF      = document.getElementById('teacherFields');
+const studentF      = document.getElementById('studentFields');
+const usernameInput = document.getElementById('usernameInput');
+const usernameHint  = document.getElementById('usernameHint');
+
+function toggleFields() {
+    const isTeacher = roleSelect.value === 'teacher';
+    teacherF.style.display = isTeacher ? '' : 'none';
+    studentF.style.display = roleSelect.value === 'student' ? '' : 'none';
+    if (isTeacher) {
+        usernameInput.required = false;
+        usernameHint.textContent = 'Öğretmenler için kullanıcı adı gerekmez (opsiyonel).';
+    } else {
+        usernameInput.required = true;
+        usernameHint.textContent = '';
+    }
+}
+roleSelect.addEventListener('change', toggleFields);
+toggleFields();
+</script>
+{% endblock %}

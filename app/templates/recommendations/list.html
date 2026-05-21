@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Öneriler{% endblock %}
+
+{% block content %}
+
+{% set all_recs = recommendations %}
+{% set high_count = all_recs | selectattr('priority', 'equalto', 'high')   | list | length %}
+{% set med_count  = all_recs | selectattr('priority', 'equalto', 'medium') | list | length %}
+{% set low_count  = all_recs | selectattr('priority', 'equalto', 'low')    | list | length %}
+
+<!-- ── Hero Banner ─────────────────────────────────────────── -->
+<div class="rec-hero mb-4">
+    <div class="rec-hero-deco"></div>
+    <div class="rec-hero-content">
+        <div class="rec-hero-icon">
+            <i class="bi bi-lightbulb-fill"></i>
+        </div>
+        <div class="rec-hero-text">
+            <h4 class="mb-1">Kişiselleştirilmiş Öneriler</h4>
+            <p class="mb-0 opacity-75" style="font-size:.88rem;">
+                Performans analizine dayalı akıllı öneriler
+            </p>
+        </div>
+        {% if nav_student_id %}
+        <button class="rec-hero-btn ms-auto" onclick="generateRecs('{{ nav_student_id }}')">
+            <i class="bi bi-lightning-fill me-2"></i>Yeni Öneri Üret
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── Stat Kartları ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-blue">
+            <div class="stat-icon"><i class="bi bi-collection-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ all_recs | length }}</div>
+                <div class="stat-label">Toplam Öneri</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-red">
+            <div class="stat-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ high_count }}</div>
+                <div class="stat-label">Yüksek Öncelik</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-orange">
+            <div class="stat-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ med_count }}</div>
+                <div class="stat-label">Orta Öncelik</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="stat-card stat-card-green">
+            <div class="stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="stat-info">
+                <div class="stat-value">{{ low_count }}</div>
+                <div class="stat-label">Düşük Öncelik</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if all_recs %}
+
+<!-- ── Filtre Butonları ───────────────────────────────────── -->
+<div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    <span class="text-muted small me-1">Filtrele:</span>
+    <button class="btn btn-sm btn-primary rec-filter" data-priority="">
+        <i class="bi bi-funnel me-1"></i>Tümü
+        <span class="badge bg-white text-primary ms-1">{{ all_recs | length }}</span>
+    </button>
+    {% if high_count %}
+    <button class="btn btn-sm btn-outline-danger rec-filter" data-priority="high">
+        Yüksek <span class="badge bg-danger ms-1">{{ high_count }}</span>
+    </button>
+    {% endif %}
+    {% if med_count %}
+    <button class="btn btn-sm btn-outline-warning rec-filter" data-priority="medium">
+        Orta <span class="badge bg-warning text-dark ms-1">{{ med_count }}</span>
+    </button>
+    {% endif %}
+    {% if low_count %}
+    <button class="btn btn-sm btn-outline-success rec-filter" data-priority="low">
+        Düşük <span class="badge bg-success ms-1">{{ low_count }}</span>
+    </button>
+    {% endif %}
+</div>
+
+<!-- ── Öneri Kartları ─────────────────────────────────────── -->
+<div id="recList" class="d-flex flex-column gap-3">
+{% for rec in all_recs %}
+<div class="rec-card rec-priority-{{ rec.priority }}">
+
+    <!-- Renkli sol şerit -->
+    <div class="rec-stripe
+        {% if rec.priority == 'high' %}rec-stripe-high
+        {% elif rec.priority == 'medium' %}rec-stripe-med
+        {% else %}rec-stripe-low{% endif %}">
+    </div>
+
+    <div class="rec-body">
+        <!-- İkon -->
+        <div class="rec-icon
+            {% if rec.priority == 'high' %}rec-icon-high
+            {% elif rec.priority == 'medium' %}rec-icon-med
+            {% else %}rec-icon-low{% endif %}">
+            <i class="bi bi-{% if rec.category == 'attendance' %}calendar-x-fill
+                {% elif rec.category == 'grade' %}graph-down-arrow
+                {% elif rec.category == 'study_plan' %}journal-bookmark-fill
+                {% elif rec.category == 'time_management' %}clock-fill
+                {% elif rec.category == 'performance' %}bar-chart-fill
+                {% elif rec.category == 'activity' %}activity
+                {% else %}lightbulb-fill{% endif %}"></i>
+        </div>
+
+        <!-- İçerik -->
+        <div class="rec-content">
+            <div class="rec-header">
+                <span class="rec-title">{{ rec.title }}</span>
+                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                    <span class="rec-badge
+                        {% if rec.priority == 'high' %}rec-badge-high
+                        {% elif rec.priority == 'medium' %}rec-badge-med
+                        {% else %}rec-badge-low{% endif %}">
+                        {% if rec.priority == 'high' %}
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Yüksek
+                        {% elif rec.priority == 'medium' %}
+                            <i class="bi bi-exclamation-circle-fill me-1"></i>Orta
+                        {% else %}
+                            <i class="bi bi-info-circle-fill me-1"></i>Düşük
+                        {% endif %}
+                    </span>
+                    {% if rec.category %}
+                    <span class="badge bg-secondary bg-opacity-10 text-secondary" style="font-size:.65rem;">
+                        {{ rec.category | replace('_', ' ') | title }}
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <p class="rec-message">{{ rec.message }}</p>
+
+            {% if rec.action %}
+            <div class="rec-action">
+                <i class="bi bi-arrow-right-circle-fill me-1"></i>{{ rec.action }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<!-- ── Boş Durum ──────────────────────────────────────────── -->
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state py-5">
+            <i class="bi bi-lightbulb" style="font-size:3rem;color:#f59e0b;opacity:.4;"></i>
+            <p class="mt-3 mb-1 fw-semibold">Henüz öneri üretilmedi</p>
+            <p class="text-muted small mb-3">Performans analizine göre kişiselleştirilmiş öneriler almak için butona tıklayın.</p>
+            {% if nav_student_id %}
+            <button class="btn btn-primary" onclick="generateRecs('{{ nav_student_id }}')">
+                <i class="bi bi-lightning-fill me-2"></i>Öneri Üret
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.rec-filter').forEach(btn => {
+    btn.addEventListener('click', function () {
+        // aktif stil
+        document.querySelectorAll('.rec-filter').forEach(b => {
+            b.classList.remove('btn-primary', 'btn-danger', 'btn-warning', 'btn-success');
+            b.classList.add(
+                b.dataset.priority === 'high'   ? 'btn-outline-danger'  :
+                b.dataset.priority === 'medium' ? 'btn-outline-warning' :
+                b.dataset.priority === 'low'    ? 'btn-outline-success' :
+                'btn-outline-secondary'
+            );
+        });
+        this.classList.remove(
+            'btn-outline-secondary','btn-outline-danger',
+            'btn-outline-warning','btn-outline-success'
+        );
+        this.classList.add(
+            this.dataset.priority === 'high'   ? 'btn-danger'  :
+            this.dataset.priority === 'medium' ? 'btn-warning' :
+            this.dataset.priority === 'low'    ? 'btn-success' :
+            'btn-primary'
+        );
+
+        const p = this.dataset.priority;
+        document.querySelectorAll('.rec-card').forEach(c => {
+            c.style.display = (!p || c.classList.contains('rec-priority-' + p)) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}
